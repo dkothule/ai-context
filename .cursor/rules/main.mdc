@@ -1,0 +1,56 @@
+***
+description: Main project rules - always apply
+globs:
+alwaysApply: true
+***
+
+# Cursor Agent Instructions
+
+## Context Location
+All project context is stored in `.ai-context/` directory.
+
+## Required Workflow
+
+### Session Start
+1. **Always read** `.ai-context/project.overview.md` first to understand the current project state
+2. **Check** `.ai-context/project.tasks.md` for current work items
+3. **Review** `.ai-context/project.structure.md` for codebase layout and file locations
+
+### During Development
+1. **Follow standards** defined in `.ai-context/standards/`
+2. **Consult** `.ai-context/standards/project.workflow.md` for git and branching strategy
+3. **Reference** language-specific standards (e.g., `.ai-context/standards/project.python.md`)
+
+### Session End
+1. **Update** `.ai-context/project.tasks.md` with current progress
+2. **Create session notes** in `.ai-context/sessions/YYYY-MM-DD-session-notes.md`
+3. **Update changelog** in `.ai-context/project.changelog.md` if there are user-facing changes
+4. **Log decisions** in `.ai-context/project.decisions.md` for significant architectural choices
+
+## Key Context Files
+
+- **Project overview**: `.ai-context/project.overview.md`
+- **Directory structure**: `.ai-context/project.structure.md`
+- **Active tasks**: `.ai-context/project.tasks.md`
+- **Backlog**: `.ai-context/project.backlog.md`
+- **Decisions**: `.ai-context/project.decisions.md`
+- **Changelog**: `.ai-context/project.changelog.md`
+
+## Standards
+
+- **General rules**: `.ai-context/standards/project.rules.md`
+- **Git workflow**: `.ai-context/standards/project.workflow.md`
+- **Python coding**: `.ai-context/standards/project.python.md`
+- **Testing**: `.ai-context/standards/project.testing.md`
+
+## Multi-Agent Environment
+
+You're working alongside Claude Code and Codex agents. All agents share the `.ai-context/` directory as the single source of truth. **Always keep context files updated** for seamless handoffs between agents.
+
+## Critical Rules
+
+1. **Never commit directly to main** - always use feature branches
+2. **Never commit untested code** - run full test suite before committing
+3. **Always use timestamps** - ISO 8601 format (YYYY-MM-DD HH:MM:SS)
+4. **Update context files** - keep documentation current as the project evolves
+5. **Follow PR process** - all merges to main require pull requests
