@@ -35,8 +35,8 @@ A centralized `.ai-context/` directory that serves as the **single source of tru
 | Agent | Config File | Status |
 |-------|-------------|--------|
 | **Cursor** | `.cursor/rules/main.mdc` | ✅ Latest `.mdc` format |
-| **Claude Code** | `claude.md` | ✅ CLI optimized |
-| **Codex** | `codex.md` | ✅ Full support |
+| **Claude Code** | `CLAUDE.MD` | ✅ CLI optimized |
+| **Codex** | `AGENTS.md` | ✅ Full support |
 | **Google Antigravity** | `.agent/rules/rules.md` | ✅ Persona-first format |
 
 All agents share the centralized `.ai-context/` directory.
@@ -50,6 +50,13 @@ Click **"Use this template"** on GitHub or clone directly:
 ```bash
 git clone https://github.com/dkothule/ai-agent-context-template.git my-project
 cd my-project
+```
+
+Or apply this template to an existing project:
+
+```bash
+git clone https://github.com/dkothule/ai-agent-context-template.git
+./ai-agent-context-template/scripts/apply-ai-context-template.sh /path/to/your-project
 ```
 
 ### 2. Customize for Your Project
@@ -102,8 +109,8 @@ your-project/
 │
 ├── .agent/rules/rules.md           # Google Antigravity config
 ├── .cursor/rules/main.mdc          # Cursor config
-├── claude.md                       # Claude Code config
-├── codex.md                        # Codex config
+├── CLAUDE.MD                       # Claude Code config
+├── AGENTS.md                       # Codex config
 │
 ├── src/                            # Your source code
 ├── tests/                          # Your tests

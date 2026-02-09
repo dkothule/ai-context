@@ -23,7 +23,7 @@ Each decision should include:
 Working with multiple AI coding assistants (Cursor, Claude Code, Codex) and need consistent context across all agents to optimize credit usage across platforms.
 
 **Decision**:
-Implement a centralized `.ai-context/` directory containing all project context, with thin agent-specific configuration files (claude.md, codex.md, .cursor/rules/main.mdc) that reference the central context.
+Implement a centralized `.ai-context/` directory containing all project context, with thin agent-specific configuration files (CLAUDE.MD, AGENTS.md, .cursor/rules/main.mdc) that reference the central context.
 
 **Consequences**:
 - ✅ Consistent context across all AI agents
@@ -40,7 +40,7 @@ Implement a centralized `.ai-context/` directory containing all project context,
 **Date**: 2025-12-03
 
 **Context**:
-User inquired about Google Antigravity compatibility with the multi-agent context system. Research revealed Antigravity uses `.agent/rules/rules.md` format (not `.antigravity/` as initially suggested in some sources). The current system already supports Cursor (`.cursor/rules/*.mdc`), Claude Code (`claude.md`), and Codex (`codex.md`).
+User inquired about Google Antigravity compatibility with the multi-agent context system. Research revealed Antigravity uses `.agent/rules/rules.md` format (not `.antigravity/` as initially suggested in some sources). The current system already supports Cursor (`.cursor/rules/*.mdc`), Claude Code (`CLAUDE.MD`), and Codex (`AGENTS.md`).
 
 **Decision**:
 Add Google Antigravity support by creating `.agent/rules/rules.md` configuration file that references the centralized `.ai-context/` system. Use Antigravity's preferred "persona-first" structure with clear role definition, critical constraints, and workflow triggers. Maintain existing agent configurations without changes.

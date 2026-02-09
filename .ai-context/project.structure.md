@@ -31,8 +31,8 @@ project-root/
 │   └── rules/
 │       └── main.mdc       # Cursor agent rules
 │
-├── claude.md              # Claude Code configuration
-├── codex.md               # Codex agent configuration
+├── CLAUDE.MD              # Claude Code configuration
+├── AGENTS.md              # Codex agent configuration
 ├── .gitignore             # Git ignore rules
 │
 ├── src/                   # Source code (to be created)
@@ -49,8 +49,8 @@ project-root/
 This project is configured for seamless use with multiple AI coding assistants:
 
 - **Cursor** → `.cursor/rules/main.mdc`
-- **Claude Code** → `claude.md` (root)
-- **Codex** → `codex.md` (root)
+- **Claude Code** → `CLAUDE.MD` (root)
+- **Codex** → `AGENTS.md` (root)
 - **Google Antigravity** → `.agent/rules/rules.md`
 
 All agents share context through the `.ai-context/` directory.

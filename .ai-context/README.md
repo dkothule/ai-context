@@ -54,8 +54,8 @@ This context is shared between Cursor, Claude Code, Codex, and Google Antigravit
 This context system works with the following AI coding assistants:
 
 - **Cursor** - Configuration: `.cursor/rules/main.mdc`
-- **Claude Code** - Configuration: `claude.md` (root)
-- **Codex** - Configuration: `codex.md` (root)
+- **Claude Code** - Configuration: `CLAUDE.MD` (root)
+- **Codex** - Configuration: `AGENTS.md` (root)
 - **Google Antigravity** - Configuration: `.agent/rules/rules.md`
 
 All agents read from the shared `.ai-context/` directory.
