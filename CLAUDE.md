@@ -1,4 +1,4 @@
-# Codex Adapter (AGENTS.md)
+# Claude Code Adapter (CLAUDE.md)
 
 This file is intentionally thin.  
 The shared source of truth is `.ai-context/`.

@@ -1,119 +1,107 @@
-# Agent Rules and Disciplines
+# Project Rules (Authoritative)
 
-## General Rules
+This file is the canonical workflow policy for all agents in this repository.
 
-1. **Timestamp Format**: Always use ISO 8601 format (YYYY-MM-DD HH:MM:SS) for all timestamps
-2. **Documentation Updates**: Update relevant `.ai-context/` files after significant changes
-3. **Decision Recording**: Log architectural decisions in `project.decisions.md`
-4. **Testing Requirement**: Never commit untested code
-5. **Context Preservation**: Update `project.tasks.md` at the end of each session
+## 1) Source Of Truth
+- `.ai-context/` is the shared source of truth across Codex, Claude Code, Cursor, Copilot, and workspace agents.
+- Agent-specific files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/*.mdc`, `.agent/rules/*.md`, `.github/copilot-instructions.md`) must stay thin and must not duplicate shared governance text.
 
-## File Modification Rules
+## 2) Instruction Priority
+Apply instructions in this order:
+1. System/developer/runtime constraints
+2. User request for the current session
+3. This file and other `.ai-context/standards/*` files
+4. Agent-specific adapter files
 
-1. **Structure Check**: Always check `project.structure.md` before creating new files or directories
-2. **Naming Conventions**: Follow naming conventions specified in language-specific standards
-3. **Changelog Updates**: Update `project.changelog.md` for user-facing changes
-4. **Version Control**: All changes must be committed with meaningful commit messages
+If instructions conflict, follow the highest-priority source and state assumptions briefly.
 
----
+## 3) Clarification And Autonomy Policy
+- Proceed without asking when requirements are clear and the change is low risk.
+- Ask the user before proceeding when ambiguity could materially change behavior, cost, security, data integrity, or production impact.
+- If blocked, ask one concise question and propose a default option to keep momentum.
 
-## Session Management (CRITICAL)
+## 4) High-Risk Action Confirmation (Required)
+Require explicit user confirmation before:
+- Destructive data/file actions (for example: `rm -rf`, irreversible deletes, force resets)
+- Production-impacting deploy/config changes
+- Database schema/data migrations in non-local environments
+- Security/authentication/authorization policy changes
+- Large dependency/platform upgrades with broad blast radius
 
-### ⚠️ MANDATORY: Session Logging
+When asking for confirmation, state:
+1. what will change,
+2. why it is needed,
+3. rollback/mitigation plan if available.
 
-**Every work session MUST be logged.** This is critical for multi-agent coordination.
+## 5) Session Start (Required)
+Before coding, read:
+1. `.ai-context/project.overview.md`
+2. `.ai-context/project.tasks.md`
+3. `.ai-context/project.structure.md`
+4. Recent files in `.ai-context/sessions/`
+5. Relevant standards in `.ai-context/standards/`
 
-A "session" is any conversation where:
-- Code changes were made
-- Architectural decisions were discussed
-- Bugs were fixed
-- Features were implemented
-- Significant investigation/debugging occurred
+## 6) Working Loop
+1. Plan the smallest safe change that satisfies the request.
+2. Implement incrementally.
+3. Run relevant tests/checks.
+4. Update context files when project state changes.
+5. Summarize outcomes, verification, and remaining risks.
 
-### Start of Session
-1. Read `project.overview.md` to understand current project state
-2. Check `project.tasks.md` for current work items
-3. Check `sessions/` for recent session notes to understand context
-4. Review `project.structure.md` for codebase layout
+## 7) Response Contract By Task Type
+### Implementation/Change Tasks
+- Lead with result.
+- Include changed files and key commands.
+- State verification performed (tests/lint/build) and what was not run.
+- Mention any residual risk or follow-up.
 
-### During Session
-1. Follow standards in `.ai-context/standards/`
-2. Make incremental, testable changes
-3. Update relevant context files as you go
+### Code Review Tasks
+- Findings first, ordered by severity.
+- Include file and line references.
+- Keep summary brief and secondary.
+- Explicitly state if no findings were identified.
 
-### End of Session (MANDATORY)
+### Incident/Debug Tasks
+- State impact, root cause (or current hypothesis), and mitigation status.
+- Include reproduction/verification steps.
+- List next actions with owners or clear handoff notes.
 
-Before concluding ANY work session, the AI agent MUST:
+## 8) Context Update Rules
+Update these files when applicable:
+- `.ai-context/project.tasks.md`: status, in-progress work, blockers, next actions
+- `.ai-context/project.decisions.md`: significant technical or architectural decisions
+- `.ai-context/project.changelog.md`: user-visible changes
 
-1. **Create session log** in `sessions/YYYY-MM-DD-<topic>.md`
-   - Use the template below
-   - Include ALL work completed
-   - Note any unfinished items
+## 9) Session Logging (Mandatory)
+Every meaningful work session must create or update a session note.
 
-2. **Update `project.tasks.md`** with current progress
+### Session File Naming
+- Format: `YYYY-MM-DD-<topic>.md`
+- Example: `2026-02-17-template-normalization.md`
+- If multiple sessions on same topic/day, append suffix: `YYYY-MM-DD-<topic>-02.md`
 
-3. **Update `project.changelog.md`** if there are user-facing changes
+### Session Location
+- `.ai-context/sessions/`
 
-4. **Log decisions** in `project.decisions.md` for any significant choices
+### Session Template
+- Use `.ai-context/sessions/_template.md`
 
-### Session Log Template
+### Timestamp Standard
+- Use ISO 8601-style values:
+  - Date: `YYYY-MM-DD`
+  - Time: `HH:MM:SS`
 
-Create files in `sessions/` using this template:
+## 10) Quality Gates
+- Do not intentionally commit untested code.
+- Keep changes focused and reversible.
+- Do not commit secrets or credentials.
+- Remove debug-only code before finalizing.
 
-```markdown
----
-date: YYYY-MM-DD HH:MM
-agent: [Cursor Agent | Claude Code | Codex | Other]
-session_type: [Feature | Bugfix | Refactor | Investigation | Setup | Other]
----
+## 11) Git Workflow
+See `.ai-context/standards/project.workflow.md` for branching, PR, and commit guidance.
 
-# Session: [Brief Description]
-
-## Summary
-[1-2 sentence summary of what was accomplished]
-
-## Work Completed
-- ✅ Item 1
-- ✅ Item 2
-
-## Files Modified
-- `path/to/file` - [what changed]
-
-## Decisions Made
-- **Decision**: [what was decided]
-- **Rationale**: [why]
-
-## Issues/Blockers
-- [Any problems encountered]
-
-## Next Steps
-- [ ] [What should be done next]
-
-## Notes for Next Agent
-[Any context the next AI agent should know for continuity]
-```
-
-### Session Naming Convention
-
-Format: `YYYY-MM-DD-<topic>.md`
-
-Examples:
-- `2025-01-15-initial-setup.md`
-- `2025-01-15-feature-auth.md`
-- `2025-01-15-bugfix-login.md`
-
-If multiple sessions on the same day, add a number:
-- `2025-01-15-01-feature-x.md`
-- `2025-01-15-02-bugfix-y.md`
-
----
-
-## Workflow
-
-See `project.workflow.md` for detailed git and branching strategy.
-
-## Multi-Agent Coordination
-
-You may be working alongside other AI agents (Cursor, Claude Code, Codex). These context files are the shared source of truth. Always keep them current to enable seamless handoffs between agents.
-
-**Session logs are the primary mechanism for continuity between agents and sessions.**
+## 12) Multi-Agent Handoffs
+Assume another agent continues your work later.
+- Be explicit in session notes.
+- Record key decisions and rationale.
+- Leave actionable next steps.
