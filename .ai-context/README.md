@@ -1,9 +1,10 @@
 # AI Context Directory
 
-This directory contains all AI agent context files for Cursor, Claude Code, Codex, and Google Antigravity.
+This directory contains all AI agent context files for Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity.
 
 ## Purpose
 Maintain consistent project understanding across multiple AI coding assistants.
+All project governance should live in `.ai-context/`; agent adapter files should stay thin.
 
 ## Structure
 - `project.overview.md` - **START HERE** - Project summary, status, objectives
@@ -21,41 +22,27 @@ Maintain consistent project understanding across multiple AI coding assistants.
 
 ## Agent Instructions
 
-### Start of Session (READ FIRST)
-1. **Read** `project.overview.md` - Understand current project state and objectives
-2. **Check** `project.tasks.md` - See what's currently being worked on
-3. **Check** `sessions/` - Review recent session logs for context
-4. **Review** `project.structure.md` - Understand codebase layout
-5. **Consult** relevant files in `standards/` - Follow project conventions
+All operational behavior is defined in `standards/project.rules.md`.
 
-### During Session
-- Follow standards in `standards/`
-- Make incremental, testable changes
-- Update relevant context files as you progress
-
-### ⚠️ End of Session (MANDATORY)
-**Before ending ANY work session, you MUST:**
-
-1. **Create session log** in `sessions/YYYY-MM-DD-<topic>.md`
-   - See template in `standards/project.rules.md`
-   - Include: summary, work completed, files modified, decisions, next steps
-2. **Update** `project.tasks.md` with progress
-3. **Update** `project.changelog.md` if user-facing changes
-4. **Log decisions** in `project.decisions.md` for significant choices
-
-**Session logs are critical for multi-agent continuity. DO NOT SKIP.**
+Use this file as the single authority for:
+- instruction priority and conflict handling
+- clarification policy and high-risk confirmations
+- session start workflow and working loop
+- response contracts for implementation/review/incident tasks
+- mandatory session logging and context updates
 
 ## Multi-Agent Coordination
 
-This context is shared between Cursor, Claude Code, Codex, and Google Antigravity. Keep files updated for seamless handoffs between agents and sessions.
+This context is shared between Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity. Keep files updated for seamless handoffs between agents and sessions.
 
 ## Supported AI Agents
 
 This context system works with the following AI coding assistants:
 
 - **Cursor** - Configuration: `.cursor/rules/main.mdc`
-- **Claude Code** - Configuration: `CLAUDE.MD` (root)
+- **Claude Code** - Configuration: `CLAUDE.md` (root)
 - **Codex** - Configuration: `AGENTS.md` (root)
+- **GitHub Copilot** - Configuration: `.github/copilot-instructions.md`
 - **Google Antigravity** - Configuration: `.agent/rules/rules.md`
 
 All agents read from the shared `.ai-context/` directory.

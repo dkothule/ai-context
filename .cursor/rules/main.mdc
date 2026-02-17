@@ -1,56 +1,30 @@
 ***
-description: Main project rules - always apply
+description: Bootstrap Cursor to shared .ai-context instructions
 globs:
 alwaysApply: true
 ***
 
-# Cursor Agent Instructions
+# Cursor Adapter Rule
 
-## Context Location
-All project context is stored in `.ai-context/` directory.
+Use `.ai-context/` as the single source of truth for project workflow, standards, and session continuity.
 
-## Required Workflow
+## Session Start
+Read in this order:
+1. `.ai-context/project.overview.md`
+2. `.ai-context/project.tasks.md`
+3. `.ai-context/project.structure.md`
+4. `.ai-context/standards/project.rules.md`
+5. Relevant files in `.ai-context/standards/`
 
-### Session Start
-1. **Always read** `.ai-context/project.overview.md` first to understand the current project state
-2. **Check** `.ai-context/project.tasks.md` for current work items
-3. **Review** `.ai-context/project.structure.md` for codebase layout and file locations
+## During Work
+- Follow `.ai-context/standards/project.rules.md`.
+- Keep changes incremental and testable.
+- Update `.ai-context/` files when project state changes.
 
-### During Development
-1. **Follow standards** defined in `.ai-context/standards/`
-2. **Consult** `.ai-context/standards/project.workflow.md` for git and branching strategy
-3. **Reference** language-specific standards (e.g., `.ai-context/standards/project.python.md`)
+## Session End (Mandatory)
+1. Create `.ai-context/sessions/YYYY-MM-DD-<topic>.md` from `.ai-context/sessions/_template.md`.
+2. Update `.ai-context/project.tasks.md`.
+3. Update `.ai-context/project.decisions.md` for major decisions.
+4. Update `.ai-context/project.changelog.md` for user-visible changes.
 
-### Session End
-1. **Update** `.ai-context/project.tasks.md` with current progress
-2. **Create session notes** in `.ai-context/sessions/YYYY-MM-DD-session-notes.md`
-3. **Update changelog** in `.ai-context/project.changelog.md` if there are user-facing changes
-4. **Log decisions** in `.ai-context/project.decisions.md` for significant architectural choices
-
-## Key Context Files
-
-- **Project overview**: `.ai-context/project.overview.md`
-- **Directory structure**: `.ai-context/project.structure.md`
-- **Active tasks**: `.ai-context/project.tasks.md`
-- **Backlog**: `.ai-context/project.backlog.md`
-- **Decisions**: `.ai-context/project.decisions.md`
-- **Changelog**: `.ai-context/project.changelog.md`
-
-## Standards
-
-- **General rules**: `.ai-context/standards/project.rules.md`
-- **Git workflow**: `.ai-context/standards/project.workflow.md`
-- **Python coding**: `.ai-context/standards/project.python.md`
-- **Testing**: `.ai-context/standards/project.testing.md`
-
-## Multi-Agent Environment
-
-You're working alongside Claude Code and Codex agents. All agents share the `.ai-context/` directory as the single source of truth. **Always keep context files updated** for seamless handoffs between agents.
-
-## Critical Rules
-
-1. **Never commit directly to main** - always use feature branches
-2. **Never commit untested code** - run full test suite before committing
-3. **Always use timestamps** - ISO 8601 format (YYYY-MM-DD HH:MM:SS)
-4. **Update context files** - keep documentation current as the project evolves
-5. **Follow PR process** - all merges to main require pull requests
+Do not duplicate standards in this file; maintain them in `.ai-context/standards/`.
