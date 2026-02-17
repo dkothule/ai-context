@@ -1,5 +1,5 @@
 ***
-last_updated: 2025-12-03 14:45:00
+last_updated: 2026-02-16 17:46:21
 ***
 
 # Project Structure
@@ -31,7 +31,10 @@ project-root/
 │   └── rules/
 │       └── main.mdc       # Cursor agent rules
 │
-├── CLAUDE.MD              # Claude Code configuration
+├── .github/               # GitHub Copilot configuration
+│   └── copilot-instructions.md
+│
+├── CLAUDE.md              # Claude Code configuration
 ├── AGENTS.md              # Codex agent configuration
 ├── .gitignore             # Git ignore rules
 │
@@ -49,8 +52,9 @@ project-root/
 This project is configured for seamless use with multiple AI coding assistants:
 
 - **Cursor** → `.cursor/rules/main.mdc`
-- **Claude Code** → `CLAUDE.MD` (root)
+- **Claude Code** → `CLAUDE.md` (root)
 - **Codex** → `AGENTS.md` (root)
+- **GitHub Copilot** → `.github/copilot-instructions.md`
 - **Google Antigravity** → `.agent/rules/rules.md`
 
 All agents share context through the `.ai-context/` directory.

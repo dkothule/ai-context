@@ -6,7 +6,7 @@
 
 ## What is This?
 
-A production-ready project template that enables **true multi-agent development** with Cursor, Claude Code, Codex, and Google Antigravity. Stop duplicating context and losing continuity when switching between AI assistants.
+A production-ready project template that enables **true multi-agent development** with Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity. Stop duplicating context and losing continuity when switching between AI assistants.
 
 ### The Problem
 
@@ -22,7 +22,7 @@ A centralized `.ai-context/` directory that serves as the **single source of tru
 
 ## Features
 
-- ✅ **4-Agent Support** - Works with Cursor, Claude Code, Codex, and Google Antigravity
+- ✅ **5-Agent Support** - Works with Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity
 - ✅ **Session Continuity** - Mandatory session logs preserve context across sessions
 - ✅ **Architecture Decision Records** - Track decisions with rationale and consequences
 - ✅ **Zero Duplication** - Single source of truth for all project context
@@ -35,9 +35,10 @@ A centralized `.ai-context/` directory that serves as the **single source of tru
 | Agent | Config File | Status |
 |-------|-------------|--------|
 | **Cursor** | `.cursor/rules/main.mdc` | ✅ Latest `.mdc` format |
-| **Claude Code** | `CLAUDE.MD` | ✅ CLI optimized |
+| **Claude Code** | `CLAUDE.md` | ✅ CLI optimized |
 | **Codex** | `AGENTS.md` | ✅ Full support |
-| **Google Antigravity** | `.agent/rules/rules.md` | ✅ Persona-first format |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Repository instructions |
+| **Google Antigravity** | `.agent/rules/rules.md` | ✅ Workspace rules format |
 
 All agents share the centralized `.ai-context/` directory.
 
@@ -57,6 +58,15 @@ Or apply this template to an existing project:
 ```bash
 git clone https://github.com/dkothule/ai-agent-context-template.git
 ./ai-agent-context-template/scripts/apply-ai-context-template.sh /path/to/your-project
+```
+
+The apply script installs canonical adapter filenames (`AGENTS.md`, `CLAUDE.md`) and only copies `.ai-context/sessions/_template.md` (not template session history).
+Before overwriting managed paths (`.ai-context/`, `.cursor/`, `.agent/`, `.github/`, root instruction files), it creates a timestamped backup in `.ai-context-backups/`.
+
+Preview changes without writing files:
+
+```bash
+./ai-agent-context-template/scripts/apply-ai-context-template.sh --dry-run /path/to/your-project
 ```
 
 ### 2. Customize for Your Project
@@ -86,7 +96,7 @@ The AI agents will automatically:
 
 ### 4. Switch Agents Seamlessly
 
-Move between Cursor, Claude Code, Codex, or Antigravity without losing context. All agents read from and write to the same `.ai-context/` directory.
+Move between Cursor, Claude Code, Codex, Copilot, or Antigravity without losing context. All agents read from and write to the same `.ai-context/` directory.
 
 ## Project Structure
 
@@ -109,7 +119,8 @@ your-project/
 │
 ├── .agent/rules/rules.md           # Google Antigravity config
 ├── .cursor/rules/main.mdc          # Cursor config
-├── CLAUDE.MD                       # Claude Code config
+├── .github/copilot-instructions.md # GitHub Copilot config
+├── CLAUDE.md                       # Claude Code config
 ├── AGENTS.md                       # Codex config
 │
 ├── src/                            # Your source code
