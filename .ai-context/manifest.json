@@ -1,0 +1,10 @@
+{
+  "name": "ai-context",
+  "version": "0.4.0",
+  "schema_version": 4,
+  "managed_by": "scripts/ai-context.sh",
+  "installed_at": null,
+  "apply_mode": "source-tree",
+  "previous_version": null,
+  "previous_schema_version": null
+}
