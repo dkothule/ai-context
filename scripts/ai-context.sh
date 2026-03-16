@@ -448,7 +448,7 @@ install_claude_hooks() {
 
     # If the file already has a top-level "hooks" key (but not our hook), skip to
     # avoid producing invalid JSON with duplicate keys. Instruct manual merge.
-    if grep -q '"hooks"' "$dst_settings" 2>/dev/null; then
+    if grep -qE '^[[:space:]]*"hooks"[[:space:]]*:' "$dst_settings" 2>/dev/null; then
       if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "Would skip .claude/settings.json merge (existing \"hooks\" key detected — merge manually)"
       else
