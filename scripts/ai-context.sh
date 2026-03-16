@@ -226,8 +226,8 @@ backup_file() {
       mkdir -p "$(dirname "$backup_path")"
       mv "$file_path" "$backup_path"
       echo "Backed up and removed: $file_path"
+      BACKUP_COUNT=$((BACKUP_COUNT + 1))
     fi
-    BACKUP_COUNT=$((BACKUP_COUNT + 1))
   fi
 }
 
@@ -242,8 +242,8 @@ backup_path_snapshot() {
       mkdir -p "$(dirname "$backup_path")"
       cp -R "$path" "$backup_path"
       echo "Backed up existing path: $path"
+      BACKUP_COUNT=$((BACKUP_COUNT + 1))
     fi
-    BACKUP_COUNT=$((BACKUP_COUNT + 1))
   fi
 }
 
