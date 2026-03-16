@@ -287,3 +287,22 @@ Add `scripts/uninstall-ai-context.sh` with a conservative removal model:
 - ✅ Uninstall avoids clobbering unrelated agent or GitHub configuration
 - ✅ README can document install, version-check, and uninstall as a full lifecycle
 - ⚠️ Pre-install files are preserved only in backups; uninstall does not attempt automatic restoration
+
+***
+
+## Decision 14: Claude Code Stop Hook — Advisory Only (exit 0)
+
+**Date**: 2026-03-15
+
+**Context**:
+Claude Code's Stop hook fires on every assistant turn, not only when the session actually ends. Using `exit 2` (force-continue) to enforce session-log creation would cause an infinite loop: the agent adds the log, the turn ends, Stop fires again, finds no *new* log to write, force-continues, and so on.
+
+**Decision**:
+The Stop hook (`.claude/hooks/session-log-check.sh`) always exits 0. When no session log exists for the current date, it prints a reminder to stdout so the agent sees it, but never blocks or force-continues. The installer merges the hook into `.claude/settings.json` non-destructively (backup + append; skip if already present).
+
+**Consequences**:
+- ✅ Agents receive a visible reminder to create a session log without risk of looping
+- ✅ Hook is safe to run on every turn (no side-effects, no force-continue)
+- ✅ Installer preserves existing `.claude/settings.json` content during merge
+- ⚠️ Advisory only — an agent can still end a session without logging if it ignores the reminder
+- ⚠️ If Claude Code changes Stop hook semantics (e.g. fires only at true session end), the exit code could be revisited

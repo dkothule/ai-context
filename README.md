@@ -1,6 +1,6 @@
-# AI Agent Memory
+# AI Context: Shared Memory for Coding Agents
 
-> Shared memory for AI coding agents — persistent context across sessions, tools, and teams
+> Persistent context across sessions, tools, and teams
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 

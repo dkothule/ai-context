@@ -213,11 +213,7 @@ done
 # We don't auto-edit settings.json to avoid breaking user config — just remove the hooks dir.
 CLAUDE_SETTINGS="$TARGET_DIR/.claude/settings.json"
 if [[ -f "$CLAUDE_SETTINGS" ]] && grep -qF 'session-log-check.sh' "$CLAUDE_SETTINGS" 2>/dev/null; then
-  if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "Note: .claude/settings.json references AI Context hooks. Remove the Stop hook entry manually."
-  else
-    echo "Note: .claude/settings.json references AI Context hooks. Remove the Stop hook entry manually."
-  fi
+  echo "Note: .claude/settings.json references AI Context hooks. Remove the Stop hook entry manually."
 fi
 
 for rel_dir in "${PRUNE_CANDIDATES[@]}"; do

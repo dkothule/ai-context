@@ -3,6 +3,7 @@
 # Reminds Claude to create a session log for today before ending.
 # Always exits 0 — advisory only. The Stop event fires on every turn, so exit 2
 # (force-continue) would cause an infinite loop if no log exists yet.
+# Expects CWD = project root (Claude Code sets this automatically).
 
 set -euo pipefail
 
