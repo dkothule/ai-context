@@ -52,7 +52,7 @@ See `project.structure.md` for detailed directory layout.
 
 ## For Adopters
 When using AI Context in your own project:
-1. Copy `project.overview.template` to replace this file
+1. Copy `project.overview.md.template` to replace this file
 2. Fill in your project details (name, mission, objectives, tech stack)
 3. Customize standards in `.ai-context/standards/` as needed
 4. Start coding with any supported AI agent
