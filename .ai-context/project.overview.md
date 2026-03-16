@@ -44,7 +44,7 @@ See `project.structure.md` for detailed directory layout.
 - ✅ Comprehensive coding standards (workflow, testing, language-specific)
 - ✅ Task management integrated into context system
 - ✅ Changelog with semantic versioning
-- ✅ Claude Code Stop hook enforcing session log creation
+- ✅ Claude Code Stop hook reminding agents to create session logs (advisory)
 - ✅ MIT licensed for maximum openness
 
 ## Current Phase

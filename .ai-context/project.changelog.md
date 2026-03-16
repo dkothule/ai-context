@@ -14,16 +14,29 @@ Use ISO 8601 timestamps: YYYY-MM-DD HH:MM:SS
 ## [Unreleased]
 
 ### Added
-(No changes yet)
+(No additions yet)
 
 ### Changed
 (No changes yet)
 
 ### Fixed
-(No changes yet)
+(No fixes yet)
 
 ### Removed
 (No removals yet)
+
+***
+
+## [0.4.1] - 2026-03-16
+
+### Fixed
+- Handle trailing whitespace after `}` in settings.json merge to avoid invalid JSON
+- Make `find` non-fatal in advisory Stop hook to prevent crashes under `set -euo pipefail`
+- Remove line-anchor from hooks grep to catch minified settings.json
+- Fix dry-run backup path to show actual `-XXXXXX` suffix pattern
+- Correct "enforces/enforcement" wording to "reminds/advisory" across all docs (hook is advisory-only)
+- Fix changelog placeholder text to match section names
+- Fix ambiguous "this file" reference in `.ai-context/README.md`
 
 ***
 
@@ -40,7 +53,7 @@ Use ISO 8601 timestamps: YYYY-MM-DD HH:MM:SS
 ### Changed
 - Bumped version to `0.4.0` and schema version to `4`
 - Moved post-apply runbooks from `scripts/APPLY-PROMPTS.md` to `.ai-context-setup/SETUP-PROMPTS.md` so the file is installed into the target project and available without the source repo
-- Updated documentation (README, project.structure.md) to reflect `.claude/hooks/`, `.ai-context-setup/`, and Stop hook enforcement
+- Updated documentation (README, project.structure.md) to reflect `.claude/hooks/`, `.ai-context-setup/`, and Stop hook (advisory reminder)
 
 ### Fixed
 - Replaced `rg` (ripgrep) with `grep -qF` in test scripts for portability across systems without ripgrep installed

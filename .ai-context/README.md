@@ -31,7 +31,7 @@ All operational behavior is defined in:
 - `standards/project.workflow.base.md`
 - `standards/project.workflow.md`
 
-Use this file as the single authority for:
+Use these standards files as the single authority for:
 - instruction priority and conflict handling
 - clarification policy and high-risk confirmations
 - session start workflow and working loop

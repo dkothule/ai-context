@@ -29,7 +29,7 @@ A centralized `.ai-context/` directory that serves as the **single source of tru
 - ✅ **Standards Enforcement** - Shared coding standards, git workflow, and testing requirements
 - ✅ **Task Tracking** - Lightweight task management integrated into the context system
 - ✅ **Version Controlled** - All context evolves with your project in git
-- ✅ **Session Log Enforcement** - Claude Code Stop hook ensures session logs are created before ending
+- ✅ **Session Log Reminder** - Claude Code Stop hook reminds you to create a session log before ending
 
 ## Supported AI Agents
 
@@ -65,7 +65,7 @@ The `scripts/ai-context.sh` installer installs canonical adapter filenames (`AGE
 Before overwriting managed paths (`.ai-context/`, `.cursor/`, `.agent/`, `.github/`, root instruction files), it creates a timestamped backup in `.ai-context-backups/`.
 After apply, it restores project-owned `.ai-context/**` paths from backup and keeps AI Context-owned files current (`README.md`, `manifest.json`, `project.overview.md.template`, `*.base.md`, `sessions/_template.md`).
 It also writes `.ai-context/manifest.json` so downstream projects can see the installed AI Context version, schema version, and apply mode (`fresh-install`, `legacy-upgrade`, `upgrade`, or `reapply`).
-The installer also installs a Claude Code Stop hook (`.claude/hooks/session-log-check.sh`) that enforces session log creation. If the target project already has a `.claude/settings.json`, the installer merges the hook without overwriting existing settings.
+The installer also installs a Claude Code Stop hook (`.claude/hooks/session-log-check.sh`) that reminds agents to create a session log. If the target project already has a `.claude/settings.json`, the installer merges the hook without overwriting existing settings.
 
 **After applying**, open the target project with your coding agent and use the setup prompts at `.ai-context-setup/SETUP-PROMPTS.md` to bootstrap `.ai-context` from the actual repository (first-time install), migrate existing docs (existing project), or restore your content from backup (upgrade). This file is installed into the target project automatically so it is always available where you need it.
 
@@ -167,7 +167,7 @@ your-project/
 ├── .agent/rules/rules.md           # Google Antigravity config
 ├── .claude/                        # Claude Code hooks & settings
 │   ├── hooks/
-│   │   └── session-log-check.sh    # Stop hook: enforces session log creation
+│   │   └── session-log-check.sh    # Stop hook: reminds agent to create session log
 │   └── settings.json               # Hook configuration (merged on install)
 ├── .cursor/rules/main.mdc          # Cursor config
 ├── .github/copilot-instructions.md # GitHub Copilot config
@@ -212,9 +212,9 @@ Before ending any session, agents **must**:
 
 This ensures perfect continuity across agents and sessions.
 
-#### Automated Enforcement (Claude Code)
+#### Automated Reminder (Claude Code)
 
-Claude Code includes a **Stop hook** (`.claude/hooks/session-log-check.sh`) that reminds Claude to create a session log when one doesn't exist for the current date. It exits 0 (advisory) rather than blocking — using `exit 2` to force-continue would cause an infinite loop since the Stop event fires after every turn. Other agents rely on their instruction files to enforce session logging.
+Claude Code includes a **Stop hook** (`.claude/hooks/session-log-check.sh`) that reminds Claude to create a session log when one doesn't exist for the current date. It exits 0 (advisory) rather than blocking — using `exit 2` to force-continue would cause an infinite loop since the Stop event fires after every turn. Other agents rely on their instruction files to encourage session logging.
 
 ## Customization Guide
 

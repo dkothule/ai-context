@@ -35,7 +35,7 @@ project-root/
 │
 ├── .claude/               # Claude Code hooks & settings
 │   ├── hooks/
-│   │   └── session-log-check.sh  # Stop hook: enforces session log creation
+│   │   └── session-log-check.sh  # Stop hook: reminds agent to create session log
 │   └── settings.json      # Hook configuration (merged on install)
 │
 ├── .cursor/               # Cursor IDE configuration

@@ -25,7 +25,7 @@ Current work in progress. Update this file at the end of each coding session.
 ## Completed Today
 - 2026-03-15 Moved post-apply runbooks from `scripts/APPLY-PROMPTS.md` to `.ai-context-setup/SETUP-PROMPTS.md`; installer and uninstaller updated to treat `.ai-context-setup/` as a managed path so it lands in the target project on every install/upgrade.
 - 2026-03-15 Fixed Claude Code Stop hook (`exit 2` → `exit 0`) to prevent infinite loop caused by hook firing on every turn rather than only at true session end.
-- 2026-03-15 Added `.claude/hooks/session-log-check.sh` and `.claude/settings.json` Stop hook enforcement; installer merges hooks into existing settings without overwriting user config.
+- 2026-03-15 Added `.claude/hooks/session-log-check.sh` and `.claude/settings.json` Stop hook (advisory reminder); installer merges hooks into existing settings without overwriting user config.
 - 2026-03-15 Replaced `rg` with `grep -qF` in test scripts for portability; bumped version to `0.4.0` / schema `4`.
 - 2026-03-09 Added `scripts/uninstall-ai-context.sh`, documented installed-version lookup in the README, and added uninstall validation coverage.
 - 2026-03-09 Tightened the first-time apply runbook to key off `apply_mode=fresh-install`, allow repository-backed placeholder replacement, and replace shipped AI Context defaults that do not match the target repo.

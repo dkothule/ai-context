@@ -477,8 +477,10 @@ install_claude_hooks() {
       tmp_merged="$(mktemp)"
       local content
       content="$(cat "$dst_settings")"
-      # Strip the final closing brace (and any trailing whitespace/newlines)
-      content="${content%\}}"
+      # Strip the final closing brace and any trailing whitespace after it.
+      # %\}* removes the shortest suffix starting with "}" (i.e., "}" plus
+      # any trailing spaces/chars that command substitution didn't strip).
+      content="${content%\}*}"
       # If the existing settings file is an empty object (e.g., "{}" with
       # optional surrounding whitespace), do not add a comma before inserting
       # the hooks block, to avoid producing "{," which is invalid JSON.

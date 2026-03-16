@@ -14,7 +14,7 @@ if [[ ! -d "$SESSIONS_DIR" ]]; then
   exit 0
 fi
 
-found="$(find "$SESSIONS_DIR" -maxdepth 1 -name "${TODAY}-*.md" ! -name "_template.md" -print -quit 2>/dev/null)"
+found="$(find "$SESSIONS_DIR" -maxdepth 1 -name "${TODAY}-*.md" ! -name "_template.md" -print -quit 2>/dev/null || true)"
 
 if [[ -z "$found" ]]; then
   echo "REMINDER: No session log found for $TODAY. Create one at $SESSIONS_DIR/${TODAY}-<topic>.md using the template at $SESSIONS_DIR/_template.md before ending the session."
