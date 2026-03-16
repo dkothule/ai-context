@@ -174,8 +174,9 @@ your-project/
 ├── CLAUDE.md                       # Claude Code config
 ├── AGENTS.md                       # Codex config
 │
-├── src/                            # Your source code
-├── tests/
+├── src/                            # Your source code (in your project)
+│
+├── tests/                          # AI Context source repo only — not installed into target projects
 │   ├── test-ai-context-installer.sh  # Installer release validation
 │   └── test-ai-context-uninstaller.sh # Uninstaller release validation
 └── README.md                       # This file
