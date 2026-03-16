@@ -425,8 +425,8 @@ install_claude_hooks() {
     echo "Would install directory: .claude/hooks"
   else
     mkdir -p "$dst_hooks_dir"
-    cp "$src_hooks_dir"/* "$dst_hooks_dir"/
-    chmod +x "$dst_hooks_dir"/*.sh 2>/dev/null || true
+    cp -R "$src_hooks_dir"/. "$dst_hooks_dir"/
+    find "$dst_hooks_dir" -maxdepth 1 -type f -name "*.sh" -exec chmod +x {} +
     echo "Installed directory: .claude/hooks"
   fi
 
