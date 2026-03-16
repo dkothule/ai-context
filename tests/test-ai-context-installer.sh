@@ -182,6 +182,38 @@ EOF
   assert_file_contains "$log" 'Merged AI Context hooks into .claude/settings.json'
 }
 
+run_hooks_existing_hooks_key_test() {
+  local target="$TMP_ROOT/hooks-existing-hooks-key"
+  local log="$TMP_ROOT/hooks-existing-hooks-key.log"
+
+  # Pre-create a .claude/settings.json with an existing top-level "hooks" key
+  # but NOT containing the AI Context hook — the merge must be skipped to avoid
+  # producing invalid JSON with duplicate "hooks" keys.
+  mkdir -p "$target/.claude/hooks"
+  cat > "$target/.claude/settings.json" <<'EOF'
+{
+  "hooks": {
+    "Stop": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "bash .claude/hooks/other-hook.sh", "timeout": 5000 }] }
+    ]
+  }
+}
+EOF
+
+  "$REPO_ROOT/scripts/ai-context.sh" "$target" >"$log"
+
+  # Hooks script must still be installed
+  assert_file_exists "$target/.claude/hooks/session-log-check.sh"
+  # Existing hook must be preserved (no duplicate-key corruption)
+  assert_file_contains "$target/.claude/settings.json" 'other-hook.sh'
+  # Our hook must NOT have been injected (would produce invalid JSON)
+  if grep -qF 'session-log-check.sh' "$target/.claude/settings.json" 2>/dev/null; then
+    echo "FAIL: session-log-check.sh was written into settings.json with existing hooks key (would produce invalid JSON)"
+    exit 1
+  fi
+  assert_file_contains "$log" 'existing "hooks" key detected.'
+}
+
 run_hooks_skip_test() {
   local target="$TMP_ROOT/hooks-skip"
   local log="$TMP_ROOT/hooks-skip.log"
@@ -224,6 +256,7 @@ run_legacy_upgrade_test
 run_old_manifest_upgrade_test
 run_reapply_test
 run_hooks_merge_test
+run_hooks_existing_hooks_key_test
 run_hooks_skip_test
 run_version_and_dry_run_test
 

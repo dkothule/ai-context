@@ -446,6 +446,19 @@ install_claude_hooks() {
       return
     fi
 
+    # If the file already has a top-level "hooks" key (but not our hook), skip to
+    # avoid producing invalid JSON with duplicate keys. Instruct manual merge.
+    if grep -q '"hooks"' "$dst_settings" 2>/dev/null; then
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        echo "Would skip .claude/settings.json merge (existing \"hooks\" key detected — merge manually)"
+      else
+        echo "Skipped .claude/settings.json merge: existing \"hooks\" key detected."
+        echo "  Add the AI Context Stop hook to .claude/settings.json manually:"
+        echo "  See .claude/settings.json in the AI Context source repo for the hook block to add."
+      fi
+      return
+    fi
+
     # Back up existing settings before merge
     local backup_path="$BACKUP_DIR/.claude/settings.json"
     if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -458,7 +471,8 @@ install_claude_hooks() {
       BACKUP_COUNT=$((BACKUP_COUNT + 1))
 
       # Merge: read existing file, strip trailing "}", append our hooks block, close.
-      # Pure bash — no jq or sed gymnastics.
+      # Pure bash — no jq or sed gymnastics. Safe only when no top-level "hooks" key
+      # exists (checked above).
       local tmp_merged
       tmp_merged="$(mktemp)"
       local content
