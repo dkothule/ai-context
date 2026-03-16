@@ -145,10 +145,10 @@ Done when:
 
 ## 2) Upgrade Or Reapply
 
-Use when the repository already had `.ai-context` and the installer created `.ai-context-backups/<timestamp>/`.
+Use when the repository already had `.ai-context` and the installer created `.ai-context-backups/<timestamp-with-suffix>/` directories.
 
 ```text
-AI Context was reapplied to this repository. Previous state is backed up under .ai-context-backups/<timestamp> (use the latest timestamp in YYYYMMDD-HHMMSS format).
+AI Context was reapplied to this repository. Previous state is backed up under .ai-context-backups/, in directories whose names start with a timestamp like YYYYMMDD-HHMMSS followed by a suffix (for example: 20250101-120000-12345).
 
 Apply the Shared Execution Rules above.
 
@@ -161,7 +161,7 @@ Please do only this:
    - version
    - schema_version
    - apply_mode
-2. Identify the latest backup directory under .ai-context-backups/.
+2. Identify the latest backup directory under .ai-context-backups/ by selecting the directory whose name has the greatest leading timestamp in YYYYMMDD-HHMMSS format, ignoring any suffix.
 3. Read previous version data from backup in this order:
    - backup/.ai-context/manifest.json
    - backup/.ai-context/template.manifest.json
@@ -201,7 +201,7 @@ Done when:
 
 ## Backup Notes
 
-- Backups are in `.ai-context-backups/<YYYYMMDD-HHMMSS>/`.
+- Backups are in `.ai-context-backups/<YYYYMMDD-HHMMSS-suffix>/` (timestamp plus a unique suffix).
 - Installer backs up managed paths before apply:
   - `.ai-context/`, `.cursor/`, `.agent/`, `.github/`, `.ai-context-setup/`
   - root instruction files (`AGENTS.md`, `CLAUDE.md`, legacy `CODEX.md`)
