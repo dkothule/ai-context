@@ -23,8 +23,8 @@ project-root/
 │   │   ├── project.workflow.md   # Project-owned workflow overrides
 │   │   ├── project.python.md     # Python standards
 │   │   └── project.testing.md    # Testing standards
-│   └── sessions/          # Session logs (MANDATORY)
-│       └── .gitkeep
+│   └── sessions/          # Session logs (MANDATORY; history not installed by default)
+│       └── _template.md   # Session log template (used to create per-session files)
 │
 ├── .ai-context-setup/     # AI Context installer setup prompts (AI Context-owned)
 │   └── SETUP-PROMPTS.md   # Post-install/upgrade agent prompts
