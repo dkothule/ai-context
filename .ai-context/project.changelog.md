@@ -11,19 +11,13 @@ Use ISO 8601 timestamps: YYYY-MM-DD HH:MM:SS
 
 ***
 
-## [Unreleased]
-
-### Added
-(No additions yet)
+## [0.5.0] - 2026-03-16
 
 ### Changed
-(No changes yet)
-
-### Fixed
-(No fixes yet)
-
-### Removed
-(No removals yet)
+- Refactored "Read First" / "Session Start" instructions in all 5 adapter files from a flat 6-item list to a tiered approach: always read 3 essential files (overview, changelog, latest session), then read additional files based on task type
+- Updated `.ai-context/README.md` with "Session Start — Tiered Reading" section documenting the new strategy
+- Updated main `README.md` "Session Start Protocol" section with rationale for tiered reading
+- Bumped version to 0.5.0
 
 ***
 

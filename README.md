@@ -186,12 +186,21 @@ your-project/
 
 ### Session Start Protocol
 
-Every AI agent is configured to:
+Agents use a **tiered reading strategy** to minimize context usage while maintaining orientation:
 
-1. **Read** `.ai-context/project.overview.md` - Understand project state
-2. **Check** `.ai-context/project.tasks.md` - See current work
-3. **Review** `.ai-context/sessions/` - Read recent session logs
-4. **Consult** `.ai-context/standards/` - Follow coding standards
+**Always read** (essential orientation):
+1. `.ai-context/project.overview.md` — project state and objectives
+2. `.ai-context/project.changelog.md` — recent changes
+3. Latest file in `.ai-context/sessions/` — last session's handoff notes
+
+**Then read based on task:**
+- **Writing/modifying code** → `standards/project.rules.base.md`, `standards/project.rules.md`
+- **Planning or scoping work** → `project.tasks.md`
+- **Understanding codebase layout** → `project.structure.md`
+- **Continuing prior work** → additional files in `sessions/`
+- **Language/testing specifics** → relevant files in `standards/`
+
+> **Why tiered reading?** AI agents have finite context windows. Loading every project file upfront wastes that budget on information irrelevant to the current task — and pushes out the actual code and conversation that matter. The tiered approach front-loads only what every task needs (orientation + recent history), then lets agents pull in additional context on demand based on what they're actually doing. The result: agents stay grounded in the latest project state, carry forward session continuity, and still have room for deep, high-quality work.
 
 ### During Development
 
