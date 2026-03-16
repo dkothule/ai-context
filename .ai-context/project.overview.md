@@ -1,14 +1,14 @@
 ***
-last_updated: 2025-12-03 15:00:00
+last_updated: 2026-03-15 00:00:00
 ***
 
 # Project Overview
 
 ## Project Name
-AI Agent Context Template
+AI Context
 
 ## Mission
-Enable seamless multi-agent development by providing a unified context system for Cursor, Claude Code, Codex, and Google Antigravity.
+Enable seamless multi-agent development by providing a unified context system for Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity.
 
 ## Current Status
 ✅ **Ready for Public Release** - Complete multi-agent context system
@@ -30,6 +30,7 @@ Enable seamless multi-agent development by providing a unified context system fo
 - **Cursor** - IDE with advanced AI features
 - **Claude Code** - Anthropic's CLI coding assistant
 - **Codex** - OpenAI's code generation model interface
+- **GitHub Copilot** - GitHub's repository-aware coding assistant
 - **Google Antigravity** - Google's agentic development platform
 
 ## Project Structure
@@ -43,14 +44,15 @@ See `project.structure.md` for detailed directory layout.
 - ✅ Comprehensive coding standards (workflow, testing, language-specific)
 - ✅ Task management integrated into context system
 - ✅ Changelog with semantic versioning
+- ✅ Claude Code Stop hook reminding agents to create session logs (advisory)
 - ✅ MIT licensed for maximum openness
 
 ## Current Phase
-**Public Template** - Ready for community use and contribution
+**Public Open-Source Release** - Ready for community use and contribution
 
-## For Template Users
-When using this template for your own project:
-1. Copy `project.overview.template` to replace this file
+## For Adopters
+When using AI Context in your own project:
+1. Copy `project.overview.md.template` to replace this file
 2. Fill in your project details (name, mission, objectives, tech stack)
 3. Customize standards in `.ai-context/standards/` as needed
 4. Start coding with any supported AI agent

@@ -10,11 +10,12 @@ Read in order:
 1. `.ai-context/project.overview.md`
 2. `.ai-context/project.tasks.md`
 3. `.ai-context/project.structure.md`
-4. `.ai-context/standards/project.rules.md`
-5. Relevant files in `.ai-context/standards/`
+4. `.ai-context/standards/project.rules.base.md`
+5. `.ai-context/standards/project.rules.md`
+6. Relevant files in `.ai-context/standards/`
 
 ## During Work
-- Follow `.ai-context/standards/project.rules.md` as authoritative process.
+- Follow `.ai-context/standards/project.rules.base.md` and `.ai-context/standards/project.rules.md`.
 - Make incremental, testable changes.
 - Keep context files current when project state changes.
 

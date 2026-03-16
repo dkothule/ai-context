@@ -1,12 +1,12 @@
-# AI Agent Context Template
+# AI Context: Shared Memory for Coding Agents
 
-> A unified context system for seamless collaboration across multiple AI coding assistants
+> Persistent context across sessions, tools, and teams
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## What is This?
 
-A production-ready project template that enables **true multi-agent development** with Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity. Stop duplicating context and losing continuity when switching between AI assistants.
+A production-ready, open-source memory layer for **true multi-agent development** with Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity. Stop losing context when switching between AI assistants or starting a new session.
 
 ### The Problem
 
@@ -29,13 +29,14 @@ A centralized `.ai-context/` directory that serves as the **single source of tru
 - ✅ **Standards Enforcement** - Shared coding standards, git workflow, and testing requirements
 - ✅ **Task Tracking** - Lightweight task management integrated into the context system
 - ✅ **Version Controlled** - All context evolves with your project in git
+- ✅ **Session Log Reminder** - Claude Code Stop hook reminds you to create a session log before ending
 
 ## Supported AI Agents
 
 | Agent | Config File | Status |
 |-------|-------------|--------|
 | **Cursor** | `.cursor/rules/main.mdc` | ✅ Latest `.mdc` format |
-| **Claude Code** | `CLAUDE.md` | ✅ CLI optimized |
+| **Claude Code** | `CLAUDE.md` + `.claude/hooks/` | ✅ CLI optimized + Stop hook |
 | **Codex** | `AGENTS.md` | ✅ Full support |
 | **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Repository instructions |
 | **Google Antigravity** | `.agent/rules/rules.md` | ✅ Workspace rules format |
@@ -44,30 +45,71 @@ All agents share the centralized `.ai-context/` directory.
 
 ## Quick Start
 
-### 1. Use This Template
+### 1. Get AI Context
 
-Click **"Use this template"** on GitHub or clone directly:
-
-```bash
-git clone https://github.com/dkothule/ai-agent-context-template.git my-project
-cd my-project
-```
-
-Or apply this template to an existing project:
+Clone the repository directly:
 
 ```bash
-git clone https://github.com/dkothule/ai-agent-context-template.git
-./ai-agent-context-template/scripts/apply-ai-context-template.sh /path/to/your-project
+git clone https://github.com/dkothule/ai-context.git ai-context
+cd ai-context
 ```
 
-The apply script installs canonical adapter filenames (`AGENTS.md`, `CLAUDE.md`) and only copies `.ai-context/sessions/_template.md` (not template session history).
+Or install AI Context into an existing project:
+
+```bash
+git clone https://github.com/dkothule/ai-context.git ai-context
+./ai-context/scripts/ai-context.sh /path/to/your-project
+```
+
+The `scripts/ai-context.sh` installer installs canonical adapter filenames (`AGENTS.md`, `CLAUDE.md`) and only copies `.ai-context/sessions/_template.md` (not template session history).
 Before overwriting managed paths (`.ai-context/`, `.cursor/`, `.agent/`, `.github/`, root instruction files), it creates a timestamped backup in `.ai-context-backups/`.
+After apply, it restores project-owned `.ai-context/**` paths from backup and keeps AI Context-owned files current (`README.md`, `manifest.json`, `project.overview.md.template`, `*.base.md`, `sessions/_template.md`).
+It also writes `.ai-context/manifest.json` so downstream projects can see the installed AI Context version, schema version, and apply mode (`fresh-install`, `legacy-upgrade`, `upgrade`, or `reapply`).
+The installer also installs a Claude Code Stop hook (`.claude/hooks/session-log-check.sh`) that reminds agents to create a session log. If the target project already has a `.claude/settings.json`, the installer merges the hook without overwriting existing settings.
+
+**After applying**, open the target project with your coding agent and use the setup prompts at `.ai-context-setup/SETUP-PROMPTS.md` to bootstrap `.ai-context` from the actual repository (first-time install), migrate existing docs (existing project), or restore your content from backup (upgrade). This file is installed into the target project automatically so it is always available where you need it.
 
 Preview changes without writing files:
 
 ```bash
-./ai-agent-context-template/scripts/apply-ai-context-template.sh --dry-run /path/to/your-project
+./ai-context/scripts/ai-context.sh --dry-run /path/to/your-project
 ```
+
+Check the AI Context version shipped by the installer:
+
+```bash
+./ai-context/scripts/ai-context.sh --version
+```
+
+Check the AI Context version installed in a specific project:
+
+```bash
+cat /path/to/your-project/.ai-context/manifest.json
+```
+
+If you have `jq`, you can print just the key fields:
+
+```bash
+jq '{version, schema_version, apply_mode}' /path/to/your-project/.ai-context/manifest.json
+```
+
+Use the project manifest to answer "what is installed here?".
+Use `scripts/ai-context.sh --version` to answer "what version can this clone install?".
+
+Uninstall AI Context from a project:
+
+```bash
+./ai-context/scripts/uninstall-ai-context.sh /path/to/your-project
+```
+
+Preview uninstall changes without removing files:
+
+```bash
+./ai-context/scripts/uninstall-ai-context.sh --dry-run /path/to/your-project
+```
+
+The uninstaller backs up removed AI Context-managed files into `.ai-context-backups/uninstall-<timestamp>-<suffix>/` and only removes empty parent directories such as `.cursor/`, `.agent/`, or `.github/`.
+It also removes `.claude/hooks/` but leaves `.claude/settings.json` intact (you may want to remove the Stop hook entry manually).
 
 ### 2. Customize for Your Project
 
@@ -103,6 +145,7 @@ Move between Cursor, Claude Code, Codex, Copilot, or Antigravity without losing 
 ```
 your-project/
 ├── .ai-context/                    # CENTRAL SOURCE OF TRUTH
+│   ├── manifest.json               # Installed AI Context version + schema metadata
 │   ├── README.md                   # Context system overview
 │   ├── project.overview.md         # START HERE - Project summary
 │   ├── project.structure.md        # Directory layout
@@ -111,20 +154,31 @@ your-project/
 │   ├── project.decisions.md        # Architecture decision records
 │   ├── project.changelog.md        # Version history
 │   ├── standards/                  # Coding standards
-│   │   ├── project.rules.md        # Agent rules & session management
-│   │   ├── project.workflow.md     # Git workflow
+│   │   ├── project.rules.base.md   # AI Context-owned shared rules
+│   │   ├── project.rules.md        # Project-owned rule overrides
+│   │   ├── project.workflow.base.md # AI Context-owned workflow baseline
+│   │   ├── project.workflow.md     # Project-owned workflow overrides
 │   │   ├── project.python.md       # Python standards
 │   │   └── project.testing.md      # Testing requirements
 │   └── sessions/                   # Session logs (MANDATORY)
 │
+├── .ai-context-setup/              # AI Context installer setup prompts
+│   └── SETUP-PROMPTS.md            # Post-install/upgrade agent prompts (use these after running ai-context.sh)
 ├── .agent/rules/rules.md           # Google Antigravity config
+├── .claude/                        # Claude Code hooks & settings
+│   ├── hooks/
+│   │   └── session-log-check.sh    # Stop hook: reminds agent to create session log
+│   └── settings.json               # Hook configuration (merged on install)
 ├── .cursor/rules/main.mdc          # Cursor config
 ├── .github/copilot-instructions.md # GitHub Copilot config
 ├── CLAUDE.md                       # Claude Code config
 ├── AGENTS.md                       # Codex config
 │
-├── src/                            # Your source code
-├── tests/                          # Your tests
+├── src/                            # Your source code (in your project)
+│
+├── tests/                          # AI Context source repo only — not installed into target projects
+│   ├── test-ai-context-installer.sh  # Installer release validation
+│   └── test-ai-context-uninstaller.sh # Uninstaller release validation
 └── README.md                       # This file
 ```
 
@@ -158,6 +212,10 @@ Before ending any session, agents **must**:
 
 This ensures perfect continuity across agents and sessions.
 
+#### Automated Reminder (Claude Code)
+
+Claude Code includes a **Stop hook** (`.claude/hooks/session-log-check.sh`) that reminds Claude to create a session log when one doesn't exist for the current date. It exits 0 (advisory) rather than blocking — using `exit 2` to force-continue would cause an infinite loop since the Stop event fires after every turn. Other agents rely on their instruction files to encourage session logging.
+
 ## Customization Guide
 
 ### Adding Language-Specific Standards
@@ -174,7 +232,36 @@ Update agent config files to reference your new standards.
 Edit existing files in `.ai-context/standards/`:
 - `project.python.md` - Modify Python style guide
 - `project.testing.md` - Adjust coverage requirements
-- `project.workflow.md` - Change git branching strategy
+- `project.rules.md` - Add project-specific rule overrides
+- `project.workflow.md` - Add project-specific workflow overrides
+
+AI Context-owned baseline files:
+- `project.rules.base.md`
+- `project.workflow.base.md`
+
+Keep project-specific deltas in `project.rules.md` and `project.workflow.md`; avoid copying baseline sections into local files.
+
+### Versioned Upgrades
+
+The installer tracks the applied AI Context release in `.ai-context/manifest.json`.
+
+- `version` follows semantic versioning for AI Context releases.
+- `schema_version` tracks installer-relevant `.ai-context` layout changes.
+- `apply_mode` records whether the run was a `fresh-install`, `legacy-upgrade`, `upgrade`, or `reapply`.
+- Legacy installs using `.ai-context/template.manifest.json` are migrated automatically on upgrade.
+
+Treat `manifest.json` as installer-managed metadata. Project-specific content should live in the `project.*`, `sessions/`, and local standards files instead.
+
+Custom files and directories under `.ai-context/**` are treated as project-owned by default unless they match one of the installer-managed paths above.
+
+### Validation
+
+Run the installer and uninstaller validation suites before release:
+
+```bash
+bash tests/test-ai-context-installer.sh
+bash tests/test-ai-context-uninstaller.sh
+```
 
 ### Adding Custom Agents
 
@@ -187,7 +274,7 @@ To add support for a new AI agent:
 
 ## Architecture Decision Records
 
-This template uses ADRs (Architecture Decision Records) in `.ai-context/project.decisions.md` to track:
+AI Context uses ADRs (Architecture Decision Records) in `.ai-context/project.decisions.md` to track:
 
 - Why decisions were made
 - What alternatives were considered
@@ -219,7 +306,7 @@ Session logs in `.ai-context/sessions/` are **mandatory** and serve as:
 - Handoff notes between agents
 - Decision rationale preservation
 
-Template provided in `.ai-context/standards/project.rules.md`.
+AI Context baseline provided in `.ai-context/standards/project.rules.base.md` and `.ai-context/standards/project.rules.md`, with install metadata in `.ai-context/manifest.json`.
 
 ## Best Practices
 
@@ -259,7 +346,7 @@ Experiment with different AI agents while maintaining consistent project underst
 
 ## Contributing
 
-Contributions welcome! This is an open template meant to evolve with the AI coding landscape.
+Contributions welcome. AI Context is meant to evolve with the AI coding landscape.
 
 ### How to Contribute
 
@@ -273,7 +360,7 @@ Contributions welcome! This is an open template meant to evolve with the AI codi
 ### Ideas for Contributions
 
 - Support for additional AI agents
-- Language-specific standard templates (TypeScript, Go, Rust, etc.)
+- Language-specific standard packs (TypeScript, Go, Rust, etc.)
 - Integration examples (CI/CD, linting, formatting)
 - Improved session log templates
 - Documentation improvements
@@ -298,7 +385,7 @@ Agent configs may need adjustment based on your specific agent version. Check ag
 
 ### Q: Can I customize the structure?
 
-Absolutely! This is a template. Adapt `.ai-context/` structure to your needs. Just keep agents synced by updating their config files.
+Absolutely. Adapt `.ai-context/` structure to your needs. Just keep agents synced by updating their config files.
 
 ## License
 
@@ -306,7 +393,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-This template synthesizes best practices from:
+AI Context synthesizes best practices from:
 - Architecture Decision Records (ADRs)
 - Multi-agent AI development workflows
 - Modern software development practices
@@ -314,8 +401,8 @@ This template synthesizes best practices from:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/dkothule/ai-agent-context-template/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/dkothule/ai-agent-context-template/discussions)
+- **Issues**: [GitHub Issues](https://github.com/dkothule/ai-context/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/dkothule/ai-context/discussions)
 
 ---
 

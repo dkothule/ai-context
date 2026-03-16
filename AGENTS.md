@@ -7,11 +7,12 @@ The shared source of truth is `.ai-context/`.
 1. `.ai-context/project.overview.md`
 2. `.ai-context/project.tasks.md`
 3. `.ai-context/project.structure.md`
-4. `.ai-context/standards/project.rules.md`
-5. Relevant language/testing/workflow standards in `.ai-context/standards/`
+4. `.ai-context/standards/project.rules.base.md`
+5. `.ai-context/standards/project.rules.md`
+6. Relevant language/testing/workflow standards in `.ai-context/standards/`
 
 ## Execution Contract
-1. Follow `.ai-context/standards/project.rules.md` as the authoritative workflow.
+1. Follow `.ai-context/standards/project.rules.base.md` and `.ai-context/standards/project.rules.md`.
 2. Make incremental, testable changes.
 3. Keep `.ai-context/` updated when project state changes.
 
