@@ -127,8 +127,13 @@ INSTALLED_SCHEMA_VERSION="$(first_manifest_number_value "$EXISTING_MANIFEST_PATH
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_ROOT="$TARGET_DIR/.ai-context-backups"
-mkdir -p "$BACKUP_ROOT"
-BACKUP_DIR="$(mktemp -d "$BACKUP_ROOT/uninstall-$TIMESTAMP-XXXXXX")"
+if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+  # In dry-run mode, do not create any backup directories; just record the planned path.
+  BACKUP_DIR="$BACKUP_ROOT/uninstall-$TIMESTAMP-XXXXXX"
+else
+  mkdir -p "$BACKUP_ROOT"
+  BACKUP_DIR="$(mktemp -d "$BACKUP_ROOT/uninstall-$TIMESTAMP-XXXXXX")"
+fi
 BACKUP_COUNT=0
 REMOVE_COUNT=0
 PRUNE_COUNT=0
