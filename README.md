@@ -108,7 +108,7 @@ Preview uninstall changes without removing files:
 ./ai-context/scripts/uninstall-ai-context.sh --dry-run /path/to/your-project
 ```
 
-The uninstaller backs up removed AI Context-managed files into `.ai-context-backups/uninstall-<timestamp>/` and only removes empty parent directories such as `.cursor/`, `.agent/`, or `.github/`.
+The uninstaller backs up removed AI Context-managed files into `.ai-context-backups/uninstall-<timestamp>-<suffix>/` and only removes empty parent directories such as `.cursor/`, `.agent/`, or `.github/`.
 It also removes `.claude/hooks/` but leaves `.claude/settings.json` intact (you may want to remove the Stop hook entry manually).
 
 ### 2. Customize for Your Project

@@ -448,7 +448,7 @@ install_claude_hooks() {
 
     # If the file already has a top-level "hooks" key (but not our hook), skip to
     # avoid producing invalid JSON with duplicate keys. Instruct manual merge.
-    if grep -qE '^[[:space:]]*"hooks"[[:space:]]*:' "$dst_settings" 2>/dev/null; then
+    if grep -qE '"hooks"[[:space:]]*:' "$dst_settings" 2>/dev/null; then
       if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "Would skip .claude/settings.json merge (existing \"hooks\" key detected — merge manually)"
       else
@@ -479,7 +479,14 @@ install_claude_hooks() {
       content="$(cat "$dst_settings")"
       # Strip the final closing brace (and any trailing whitespace/newlines)
       content="${content%\}}"
-      printf '%s,\n' "$content" > "$tmp_merged"
+      # If the existing settings file is an empty object (e.g., "{}" with
+      # optional surrounding whitespace), do not add a comma before inserting
+      # the hooks block, to avoid producing "{," which is invalid JSON.
+      if grep -qE '^\s*\{\s*\}\s*$' "$dst_settings"; then
+        printf '%s\n' "$content" > "$tmp_merged"
+      else
+        printf '%s,\n' "$content" > "$tmp_merged"
+      fi
       cat >> "$tmp_merged" <<'HOOKEOF'
   "hooks": {
     "Stop": [

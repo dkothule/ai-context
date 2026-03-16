@@ -76,7 +76,7 @@ What it does:
   - Warns if .claude/settings.json still references AI Context hooks (manual cleanup)
 
 Notes:
-  - Removed files are backed up to .ai-context-backups/uninstall-<timestamp>/
+  - Removed files are backed up under .ai-context-backups/ as uninstall-<timestamp>-<suffix>/
   - The installed version is read from .ai-context/manifest.json when available
 EOF
 }
@@ -180,7 +180,7 @@ backup_and_remove_path() {
 
   local backup_path="$BACKUP_DIR/$rel_path"
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    echo "Would back up and remove: $rel_path -> .ai-context-backups/uninstall-$TIMESTAMP/$rel_path"
+    echo "Would back up and remove: $rel_path -> .ai-context-backups/$(basename "$BACKUP_DIR")/$rel_path"
   else
     mkdir -p "$(dirname "$backup_path")"
     mv "$path" "$backup_path"
