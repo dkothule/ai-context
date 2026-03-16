@@ -179,7 +179,13 @@ TARGET_LEGACY_MANIFEST_PATH="$TARGET_CONTEXT_DIR/template.manifest.json"
 EXISTING_MANIFEST_PATH="$(detect_manifest_path "$TARGET_CONTEXT_DIR")"
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP_DIR="$TARGET_DIR/.ai-context-backups/$TIMESTAMP"
+BACKUP_BASE_DIR="$TARGET_DIR/.ai-context-backups"
+BACKUP_DIR="$BACKUP_BASE_DIR/$TIMESTAMP-$$"
+if [[ -d "$BACKUP_DIR" ]]; then
+  echo "Error: backup directory already exists: $BACKUP_DIR"
+  echo "Please retry the operation."
+  exit 1
+fi
 BACKUP_COUNT=0
 RESTORE_COUNT=0
 HAS_EXISTING_AI_CONTEXT=0
