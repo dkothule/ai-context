@@ -178,10 +178,9 @@ backup_and_remove_path() {
     mkdir -p "$(dirname "$backup_path")"
     mv "$path" "$backup_path"
     echo "Backed up and removed: $rel_path"
+    BACKUP_COUNT=$((BACKUP_COUNT + 1))
+    REMOVE_COUNT=$((REMOVE_COUNT + 1))
   fi
-
-  BACKUP_COUNT=$((BACKUP_COUNT + 1))
-  REMOVE_COUNT=$((REMOVE_COUNT + 1))
 }
 
 prune_empty_directory() {
@@ -200,9 +199,8 @@ prune_empty_directory() {
   else
     rmdir "$dir"
     echo "Removed empty directory: $rel_dir"
+    PRUNE_COUNT=$((PRUNE_COUNT + 1))
   fi
-
-  PRUNE_COUNT=$((PRUNE_COUNT + 1))
 }
 
 for rel_path in "${MANAGED_PATHS[@]}"; do
