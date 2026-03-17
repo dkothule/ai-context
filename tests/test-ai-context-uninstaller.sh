@@ -70,7 +70,7 @@ EOF
   assert_file_contains "$target/.cursor/settings.json" '{}'
   assert_file_contains "$target/.agent/custom.txt" 'custom agent note'
   assert_dir_exists "$target/.ai-context-backups"
-  assert_contains 'Installed AI Context version: 0.4.1' "$uninstall_output"
+  assert_contains 'Installed AI Context version: 0.5.0' "$uninstall_output"
   assert_contains 'Removed managed items: 8' "$uninstall_output"
   assert_contains 'AI Context removed successfully from:' "$uninstall_output"
 }
