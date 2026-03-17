@@ -45,7 +45,7 @@ run_fresh_install_test() {
 
   assert_file_exists "$target/.ai-context/manifest.json"
   assert_file_missing "$target/.ai-context/template.manifest.json"
-  assert_file_contains "$target/.ai-context/manifest.json" '"version": "0.4.1"'
+  assert_file_contains "$target/.ai-context/manifest.json" '"version": "0.5.0"'
   assert_file_contains "$target/.ai-context/manifest.json" '"schema_version": 4'
   assert_file_contains "$target/.ai-context/manifest.json" '"apply_mode": "fresh-install"'
   assert_file_contains "$target/.ai-context/manifest.json" '"previous_version": null'
@@ -134,7 +134,7 @@ run_reapply_test() {
   cat > "$target/.ai-context/manifest.json" <<'EOF'
 {
   "name": "ai-context",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "schema_version": 4,
   "managed_by": "scripts/ai-context.sh",
   "installed_at": "2026-03-09T00:00:00Z",
@@ -150,7 +150,7 @@ EOF
   "$REPO_ROOT/scripts/ai-context.sh" "$target" >"$log"
 
   assert_file_contains "$target/.ai-context/manifest.json" '"apply_mode": "reapply"'
-  assert_file_contains "$target/.ai-context/manifest.json" '"previous_version": "0.4.1"'
+  assert_file_contains "$target/.ai-context/manifest.json" '"previous_version": "0.5.0"'
   assert_file_contains "$target/.ai-context/manifest.json" '"previous_schema_version": 4'
   assert_file_contains "$target/.ai-context/project.decisions.md" 'custom decisions'
 }
@@ -243,7 +243,7 @@ run_version_and_dry_run_test() {
   version_output="$("$REPO_ROOT/scripts/ai-context.sh" --version)"
   dry_run_output="$("$REPO_ROOT/scripts/ai-context.sh" --dry-run "$dry_run_target")"
 
-  assert_contains 'version=0.4.1' "$version_output"
+  assert_contains 'version=0.5.0' "$version_output"
   assert_contains 'schema_version=4' "$version_output"
   assert_contains 'Dry run completed for:' "$dry_run_output"
   assert_file_missing "$dry_run_target/.ai-context"

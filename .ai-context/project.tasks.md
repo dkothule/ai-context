@@ -1,5 +1,5 @@
 ***
-last_updated: 2026-03-15 00:00:00
+last_updated: 2026-03-16 00:00:00
 ***
 
 # Active Tasks
@@ -23,6 +23,7 @@ Current work in progress. Update this file at the end of each coding session.
 (No blocked tasks currently)
 
 ## Completed Today
+- 2026-03-16 Implemented tiered session-start reading across all 5 adapters; bumped to v0.5.0; pushed to `feat/tiered-session-start` for validation testing across agents.
 - 2026-03-15 Moved post-apply runbooks from `scripts/APPLY-PROMPTS.md` to `.ai-context-setup/SETUP-PROMPTS.md`; installer and uninstaller updated to treat `.ai-context-setup/` as a managed path so it lands in the target project on every install/upgrade.
 - 2026-03-15 Fixed Claude Code Stop hook (`exit 2` → `exit 0`) to prevent infinite loop caused by hook firing on every turn rather than only at true session end.
 - 2026-03-15 Added `.claude/hooks/session-log-check.sh` and `.claude/settings.json` Stop hook (advisory reminder); installer merges hooks into existing settings without overwriting user config.
@@ -51,9 +52,9 @@ Current work in progress. Update this file at the end of each coding session.
 - 2025-11-20 Created AI context system
 
 ## Next Session
-1. Fill in project.overview.md with actual project details
-2. Define tech stack and dependencies
-3. Create initial source code structure
+1. Test tiered session-start format across real sessions with Claude Code, Codex, and Cursor
+2. Validate agents follow tiered reading (not loading everything upfront)
+3. Merge `feat/tiered-session-start` to main once validated
 
 ***
 **Session Notes**:
