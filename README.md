@@ -6,7 +6,7 @@
 
 ## What is This?
 
-A production-ready, open-source memory layer for **true multi-agent development** with Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity. Stop losing context when switching between AI assistants or starting a new session.
+A production-ready, open-source memory layer for **true multi-agent development** with Claude, Cursor, Codex, Gemini, Antigravity, and more. Stop losing context when switching between AI assistants or starting a new session.
 
 ### The Problem
 
@@ -22,7 +22,7 @@ A centralized `.ai-context/` directory that serves as the **single source of tru
 
 ## Features
 
-- ✅ **5-Agent Support** - Works with Cursor, Claude Code, Codex, GitHub Copilot, and Google Antigravity
+- ✅ **Multi-Agent Support** - Works with Claude, Cursor, Codex, Antigravity, and more
 - ✅ **Session Continuity** - Mandatory session logs preserve context across sessions
 - ✅ **Architecture Decision Records** - Track decisions with rationale and consequences
 - ✅ **Zero Duplication** - Single source of truth for all project context
@@ -35,81 +35,51 @@ A centralized `.ai-context/` directory that serves as the **single source of tru
 
 | Agent | Config File | Status |
 |-------|-------------|--------|
-| **Cursor** | `.cursor/rules/main.mdc` | ✅ Latest `.mdc` format |
-| **Claude Code** | `CLAUDE.md` + `.claude/hooks/` | ✅ CLI optimized + Stop hook |
-| **Codex** | `AGENTS.md` | ✅ Full support |
-| **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Repository instructions |
-| **Google Antigravity** | `.agent/rules/rules.md` | ✅ Workspace rules format |
+| Agent | Adapter File | Has CLI? |
+|-------|-------------|----------|
+| **Claude** | `CLAUDE.md` + `.claude/hooks/` | ✅ `claude` — streaming setup |
+| **Cursor** | `.cursor/rules/main.mdc` | No (IDE only) |
+| **Codex** | `AGENTS.md` | ✅ `codex` — prompt execution |
+| **Antigravity** | `.agent/rules/rules.md` | No (`agy` — no prompt execution) |
+| **Gemini** | *(no adapter yet)* | ✅ `gemini` — prompt execution |
 
-All agents share the centralized `.ai-context/` directory.
+All agents share the centralized `.ai-context/` directory. Agents with a CLI (Claude, Codex, Gemini) can run the setup prompt automatically to configure your project. Other agents use the same shared context via their adapter files.
 
 ## Quick Start
 
-### 1. Get AI Context
-
-Clone the repository directly:
+### 1. Install AI Context
 
 ```bash
-git clone https://github.com/dkothule/ai-context.git ai-context
-cd ai-context
+npx ai-context init
 ```
 
-Or install AI Context into an existing project:
+The interactive flow:
+1. **Confirm** target directory
+2. **Select agent adapters** to install (Claude, Cursor, Codex pre-checked; Antigravity opt-in)
+3. **Install** — copies adapter files, backs up existing files, restores project-owned content
+4. **Select CLI agent** for project configuration (claude, codex, gemini, or manual paste)
+5. **Run setup** — the CLI agent analyzes your repo and configures `.ai-context/` files
+
+Install globally for repeated use:
 
 ```bash
-git clone https://github.com/dkothule/ai-context.git ai-context
-./ai-context/scripts/ai-context.sh /path/to/your-project
+npm install -g ai-context
+ai-context init
 ```
 
-The `scripts/ai-context.sh` installer installs canonical adapter filenames (`AGENTS.md`, `CLAUDE.md`) and only copies `.ai-context/sessions/_template.md` (not template session history).
-Before overwriting managed paths (`.ai-context/`, `.cursor/`, `.agent/`, `.github/`, root instruction files), it creates a timestamped backup in `.ai-context-backups/`.
-After apply, it restores project-owned `.ai-context/**` paths from backup and keeps AI Context-owned files current (`README.md`, `manifest.json`, `project.overview.md.template`, `*.base.md`, `sessions/_template.md`).
-It also writes `.ai-context/manifest.json` so downstream projects can see the installed AI Context version, schema version, and apply mode (`fresh-install`, `legacy-upgrade`, `upgrade`, or `reapply`).
-The installer also installs a Claude Code Stop hook (`.claude/hooks/session-log-check.sh`) that reminds agents to create a session log. If the target project already has a `.claude/settings.json`, the installer merges the hook without overwriting existing settings.
-
-**After applying**, open the target project with your coding agent and use the setup prompts at `.ai-context-setup/SETUP-PROMPTS.md` to bootstrap `.ai-context` from the actual repository (first-time install), migrate existing docs (existing project), or restore your content from backup (upgrade). This file is installed into the target project automatically so it is always available where you need it.
-
-Preview changes without writing files:
+### Other Commands
 
 ```bash
-./ai-context/scripts/ai-context.sh --dry-run /path/to/your-project
+ai-context setup               # Re-run setup (pick a CLI agent to configure project)
+ai-context setup --cli claude   # Skip picker, use claude directly
+ai-context setup --print        # Print setup prompt for manual paste
+ai-context status               # Show installed version, schema, agent adapters
+ai-context version              # Show CLI version
+ai-context apply <path>         # Non-interactive install (CI/scripts)
+ai-context uninstall <path>     # Remove AI Context from a project
+ai-context init --dry-run       # Preview without writing
+ai-context init --gitignore     # Also add sessions/ and backups/ to .gitignore
 ```
-
-Check the AI Context version shipped by the installer:
-
-```bash
-./ai-context/scripts/ai-context.sh --version
-```
-
-Check the AI Context version installed in a specific project:
-
-```bash
-cat /path/to/your-project/.ai-context/manifest.json
-```
-
-If you have `jq`, you can print just the key fields:
-
-```bash
-jq '{version, schema_version, apply_mode}' /path/to/your-project/.ai-context/manifest.json
-```
-
-Use the project manifest to answer "what is installed here?".
-Use `scripts/ai-context.sh --version` to answer "what version can this clone install?".
-
-Uninstall AI Context from a project:
-
-```bash
-./ai-context/scripts/uninstall-ai-context.sh /path/to/your-project
-```
-
-Preview uninstall changes without removing files:
-
-```bash
-./ai-context/scripts/uninstall-ai-context.sh --dry-run /path/to/your-project
-```
-
-The uninstaller backs up removed AI Context-managed files into `.ai-context-backups/uninstall-<timestamp>-<suffix>/` and only removes empty parent directories such as `.cursor/`, `.agent/`, or `.github/`.
-It also removes `.claude/hooks/` but leaves `.claude/settings.json` intact (you may want to remove the Stop hook entry manually).
 
 ### 2. Customize for Your Project
 
@@ -138,7 +108,7 @@ The AI agents will automatically:
 
 ### 4. Switch Agents Seamlessly
 
-Move between Cursor, Claude Code, Codex, Copilot, or Antigravity without losing context. All agents read from and write to the same `.ai-context/` directory.
+Move between Claude, Cursor, Codex, Gemini, or Antigravity without losing context. All agents read from and write to the same `.ai-context/` directory.
 
 ## Project Structure
 
@@ -162,23 +132,17 @@ your-project/
 │   │   └── project.testing.md      # Testing requirements
 │   └── sessions/                   # Session logs (MANDATORY)
 │
-├── .ai-context-setup/              # AI Context installer setup prompts
-│   └── SETUP-PROMPTS.md            # Post-install/upgrade agent prompts (use these after running ai-context.sh)
-├── .agent/rules/rules.md           # Google Antigravity config
+├── .agent/rules/rules.md           # Antigravity config
 ├── .claude/                        # Claude Code hooks & settings
 │   ├── hooks/
 │   │   └── session-log-check.sh    # Stop hook: reminds agent to create session log
 │   └── settings.json               # Hook configuration (merged on install)
 ├── .cursor/rules/main.mdc          # Cursor config
-├── .github/copilot-instructions.md # GitHub Copilot config
 ├── CLAUDE.md                       # Claude Code config
 ├── AGENTS.md                       # Codex config
 │
 ├── src/                            # Your source code (in your project)
 │
-├── tests/                          # AI Context source repo only — not installed into target projects
-│   ├── test-ai-context-installer.sh  # Installer release validation
-│   └── test-ai-context-uninstaller.sh # Uninstaller release validation
 └── README.md                       # This file
 ```
 
@@ -263,15 +227,6 @@ Treat `manifest.json` as installer-managed metadata. Project-specific content sh
 
 Custom files and directories under `.ai-context/**` are treated as project-owned by default unless they match one of the installer-managed paths above.
 
-### Validation
-
-Run the installer and uninstaller validation suites before release:
-
-```bash
-bash tests/test-ai-context-installer.sh
-bash tests/test-ai-context-uninstaller.sh
-```
-
 ### Adding Custom Agents
 
 To add support for a new AI agent:
@@ -339,7 +294,7 @@ AI Context baseline provided in `.ai-context/standards/project.rules.base.md` an
 
 ### Solo Developer with Multiple AI Tools
 
-Switch between Cursor for feature work, Claude Code for refactoring, and Antigravity for complex debugging - without losing context.
+Switch between Cursor for feature work, Claude for refactoring, and Gemini for complex debugging — without losing context.
 
 ### Team Development
 
@@ -376,9 +331,9 @@ Contributions welcome. AI Context is meant to evolve with the AI coding landscap
 
 ## FAQ
 
-### Q: Do I need all four AI agents?
+### Q: Do I need all the AI agents?
 
-No! Use any combination. Each agent config file is independent. Delete configs for agents you don't use.
+No! Use any combination. Select only the adapters you need during `ai-context init`. Each agent config file is independent.
 
 ### Q: Can I use this for non-AI development?
 

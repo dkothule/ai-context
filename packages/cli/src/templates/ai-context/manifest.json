@@ -2,9 +2,10 @@
   "name": "ai-context",
   "version": "1.0.0",
   "schema_version": 5,
-  "managed_by": "npm:ai-context@1.0.0",
+  "managed_by": "npm:ai-context",
   "installed_at": null,
   "apply_mode": "source-tree",
+  "agents_installed": null,
   "previous_version": null,
   "previous_schema_version": null
 }

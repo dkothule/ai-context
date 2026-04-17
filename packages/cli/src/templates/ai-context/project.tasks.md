@@ -61,10 +61,9 @@ Current work in progress. Update this file at the end of each coding session.
 - 2025-11-20 Created AI context system
 
 ## Next Session
-1. Commit all changes on `feat/npm-cli-v1` (everything is uncommitted)
-2. Validate `npx . init` interactive flow end-to-end
-3. Verify `ai-context` npm name availability; fallback: `ai-context-cli`
-4. Merge `feat/npm-cli-v1` to main and publish to npm
+1. Test tiered session-start format across real sessions with Claude Code, Codex, and Cursor
+2. Validate agents follow tiered reading (not loading everything upfront)
+3. Merge `feat/tiered-session-start` to main once validated
 
 ***
 **Session Notes**:

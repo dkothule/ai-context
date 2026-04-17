@@ -1,0 +1,60 @@
+{
+  "name": "ai-context",
+  "version": "1.0.0",
+  "description": "Shared memory for coding agents — Cursor, Claude Code, Codex, Copilot, and Antigravity",
+  "license": "MIT",
+  "author": "dkothule",
+  "homepage": "https://github.com/dkothule/ai-agent-context-template",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dkothule/ai-agent-context-template.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "agent",
+    "context",
+    "cursor",
+    "claude",
+    "codex",
+    "copilot",
+    "multi-agent"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "ai-context": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "src/templates/",
+    "src/setup-prompts/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test && node scripts/assert-version-sync.js"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "@inquirer/prompts": "^7.0.0",
+    "picocolors": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "vitest": "^2.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "tsx": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
