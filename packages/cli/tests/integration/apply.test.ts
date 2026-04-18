@@ -37,7 +37,7 @@ describe('runInstall — fresh install', () => {
     expect(manifest).not.toBeNull();
     expect(manifest!.version).toBe(await currentTemplateVersion());
     expect(manifest!.apply_mode).toBe('fresh-install');
-    expect(manifest!.managed_by).toContain('npm:ai-context');
+    expect(manifest!.managed_by).toMatch(/^npm:.*ai-context@[\d.]+$/);
   });
 
   it('copies agent adapter files', async () => {

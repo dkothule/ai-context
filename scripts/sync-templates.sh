@@ -93,18 +93,25 @@ else
   done
   # Keep .gitkeep stubs so git tracks the dirs in the packaged tarball
   : > "$DEST/ai-context/sessions/_archive/.gitkeep" 2>/dev/null || true
-  # Normalize template manifest: strip install-specific fields
+  # Normalize template manifest:
+  # - version  ← derived from packages/cli/package.json (single source of truth)
+  # - managed_by ← derived from package.json name field (also single source)
+  # - all install-specific fields nulled
   node -e "
     const fs = require('fs');
     const path = '$DEST/ai-context/manifest.json';
+    const pkgPath = '$REPO_ROOT/packages/cli/package.json';
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
     const m = JSON.parse(fs.readFileSync(path, 'utf8'));
-    m.managed_by = 'npm:ai-context';
+    m.version = pkg.version;
+    m.managed_by = 'npm:' + pkg.name;
     m.installed_at = null;
     m.apply_mode = 'source-tree';
     m.agents_installed = null;
     m.previous_version = null;
     m.previous_schema_version = null;
     fs.writeFileSync(path, JSON.stringify(m, null, 2) + '\n');
+    console.log('    Template manifest: version=' + m.version + ', managed_by=' + m.managed_by);
   "
   echo "  Synced tool-owned .ai-context files -> templates/ai-context (project-owned files preserved)"
 fi
