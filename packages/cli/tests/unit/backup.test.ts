@@ -75,4 +75,23 @@ describe('backupPath — nested .git handling', () => {
     expect(existsSync(join(backupRoot, '.ai-context', 'sessions', '.gitkeep'))).toBe(true);
     expect(await readFile(join(backupRoot, '.ai-context', '.gitignore'), 'utf8')).toBe('*.tmp\n');
   });
+
+  it('preserves original mtimes on backed-up files (so `ai-context compact` age detection survives upgrades)', async () => {
+    const { stat, utimes } = await import('fs/promises');
+    await mkdir(join(tmpDir, '.ai-context', 'sessions'), { recursive: true });
+    const sessionFile = join(tmpDir, '.ai-context', 'sessions', '2025-12-01-old.md');
+    await writeFile(sessionFile, '# old session\n');
+    // Age this file to 90 days ago
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    await utimes(sessionFile, ninetyDaysAgo, ninetyDaysAgo);
+
+    const sourceStat = await stat(sessionFile);
+
+    const backupRoot = await createBackupDir(tmpDir);
+    await backupPath(tmpDir, '.ai-context', backupRoot);
+
+    const backedUp = await stat(join(backupRoot, '.ai-context', 'sessions', '2025-12-01-old.md'));
+    // Allow 1-second drift for filesystem precision variance
+    expect(Math.abs(backedUp.mtime.getTime() - sourceStat.mtime.getTime())).toBeLessThan(1000);
+  });
 });

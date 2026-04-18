@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import { readdir, stat } from 'fs/promises';
 import { getRegisteredCLIs } from '../core/agentCLI.js';
 import { executeOrCopy } from '../core/clipboardFallback.js';
+import { writeCommandLog, isoStamp } from '../core/logWriter.js';
 import { log } from '../ui/logger.js';
 import pc from 'picocolors';
 
@@ -99,6 +100,40 @@ export function compactCommand(): Command {
         commandName: 'compact',
         pasteHint: 'the agent will read, summarize, and archive the listed session files.',
       });
+
+      // Persist a compact log regardless of outcome.
+      const logContent = [
+        '---',
+        `command: ai-context compact`,
+        `outcome: ${result.outcome}`,
+        `older_than_days: ${olderThanDays}`,
+        `keep: ${keepCount}`,
+        `source_count: ${toArchive.length}`,
+        `finished_at: ${isoStamp()}`,
+        '---',
+        '',
+        '# Compact log',
+        '',
+        `- **Outcome**: ${result.outcome}`,
+        `- **CLI**: ${result.cli ?? 'n/a'}`,
+        `- **Older-than threshold**: ${olderThanDays} days`,
+        `- **Keep count**: ${keepCount}`,
+        `- **Selected for archive**: ${toArchive.length} file(s)`,
+        '',
+        '## Sessions submitted for archival',
+        '',
+        ...toArchive.map((s) => `- \`${s.relPath}\``),
+        '',
+        '## Agent output',
+        '',
+        result.stdout && result.stdout.trim().length > 0
+          ? result.stdout
+          : '(no agent output — outcome was not "executed")',
+        '',
+      ].join('\n');
+
+      const logPath = await writeCommandLog({ targetDir, category: 'compact', content: logContent });
+      log.info(`Compact log: ${pc.dim(logPath)}`);
 
       if (result.outcome === 'failed') {
         process.exit(1);

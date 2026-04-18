@@ -1,6 +1,9 @@
 {
-  "name": "ai-context",
+  "name": "@dkothule/ai-context",
   "version": "1.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Shared memory for coding agents — Cursor, Claude Code, Codex, and Antigravity",
   "license": "MIT",
   "author": "dkothule",

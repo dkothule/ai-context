@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
 # AI Context — PreCompact hook
-# Fires before auto or manual context compaction.
+# Fires before auto or manual context compaction (both triggers treated the same).
 #
-# Manual trigger: blocks compaction if no session log has been edited recently
-#   (default 30 min, override via AI_CONTEXT_PRECOMPACT_STALENESS_MINUTES).
-#   Multiple logs per day are fine — the hook checks freshness, not filename.
-#
-# Auto trigger: writes a best-effort autosave of the transcript to
-#   .ai-context/sessions/YYYY-MM-DD-HHMM-precompact-autosave.md so the working
-#   context isn't lost. Compaction then proceeds (exit 0).
+# Writes a best-effort autosave of the transcript to
+#   .ai-context/sessions/YYYY-MM-DD-HHMM-precompact-autosave.md
+# so the working context is preserved to disk before compaction drops it.
+# Compaction always proceeds (exit 0) — the SessionStart(compact) hook in the
+# next session reminds the agent to curate the autosave into a proper log.
 #
 # Expects CWD = project root (Claude Code sets this automatically).
 
 set -euo pipefail
 
 SESSIONS_DIR=".ai-context/sessions"
-STALENESS_MIN="${AI_CONTEXT_PRECOMPACT_STALENESS_MINUTES:-30}"
 
-# Read stdin JSON. We only need `trigger` and `transcript_path`.
+# Read stdin JSON. We only need `transcript_path` for the autosave content.
 input="$(cat || true)"
 
 extract_field() {
@@ -28,33 +25,10 @@ extract_field() {
 trigger="$(extract_field trigger)"
 transcript_path="$(extract_field transcript_path)"
 
-# Sessions dir may not exist yet (brand-new install) — in that case just allow.
-if [[ ! -d "$SESSIONS_DIR" ]]; then
-  exit 0
-fi
+# Sessions dir may not exist yet (brand-new install) — just allow compaction.
+[[ -d "$SESSIONS_DIR" ]] || exit 0
 
-if [[ "$trigger" == "manual" ]]; then
-  # Freshness check: is there any non-archive, non-autosave, non-template log
-  # modified within the staleness window?
-  recent="$(find "$SESSIONS_DIR" -maxdepth 1 -type f -name "*.md" \
-    ! -name "_template.md" \
-    ! -name "*-precompact-autosave.md" \
-    -mmin "-${STALENESS_MIN}" 2>/dev/null | head -1 || true)"
-
-  if [[ -z "$recent" ]]; then
-    reason="No recent session log detected (within ${STALENESS_MIN} min). Write a new log for the current topic at ${SESSIONS_DIR}/$(date +%Y-%m-%d)-<topic>.md (multiple logs per day are fine — one per topic), OR if the current topic is already logged, refresh its frontmatter and save. Then run /compact again."
-    # JSON-escape the reason
-    esc_reason="${reason//\\/\\\\}"
-    esc_reason="${esc_reason//\"/\\\"}"
-    printf '{"decision":"block","reason":"%s"}' "$esc_reason"
-    exit 0
-  fi
-
-  # Fresh log exists — allow compaction.
-  exit 0
-fi
-
-# Auto trigger — write an autosave.
+# Write an autosave for both manual and auto triggers.
 date_str="$(date +%Y-%m-%d)"
 time_str="$(date +%H%M)"
 autosave="${SESSIONS_DIR}/${date_str}-${time_str}-precompact-autosave.md"
@@ -62,13 +36,13 @@ autosave="${SESSIONS_DIR}/${date_str}-${time_str}-precompact-autosave.md"
 {
   printf -- '---\n'
   printf 'autosaved: true\n'
-  printf 'trigger: auto\n'
+  printf 'trigger: %s\n' "${trigger:-unknown}"
   printf 'date: %s\n' "$date_str"
   printf 'time: %s\n' "$(date +%H:%M:%S)"
   printf 'transcript_ref: %s\n' "${transcript_path:-unknown}"
   printf -- '---\n\n'
   printf '# Pre-compact autosave\n\n'
-  printf 'Context compaction fired automatically. This file preserves a pointer to\n'
+  printf 'Context compaction (trigger: %s) fired. This file preserves a pointer to\n' "${trigger:-unknown}"
   printf 'the full transcript so information is not lost. The agent should review\n'
   printf 'this file in the next turn, write a curated session log using\n'
   printf '`.ai-context/sessions/_template.md`, then delete this autosave.\n\n'

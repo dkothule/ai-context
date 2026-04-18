@@ -61,6 +61,10 @@ export async function backupPath(
   if (!existsSync(src)) return false;
 
   await mkdir(join(dst, '..'), { recursive: true });
-  await cp(src, dst, { recursive: true, filter: skipDotGit });
+  // preserveTimestamps keeps file mtimes intact through backup. Important for
+  // `ai-context compact` which filters session logs by age: without this, every
+  // upgrade would reset all session mtimes to "now" and compact would never
+  // find anything older than `--older-than <days>`.
+  await cp(src, dst, { recursive: true, filter: skipDotGit, preserveTimestamps: true });
   return true;
 }

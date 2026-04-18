@@ -32,8 +32,7 @@ Thumbs.db
 .env
 .env.local
 
-# Session notes (optional - remove if you want to track them)
-.ai-context/sessions/
+local/
 
 # Logs
 *.log

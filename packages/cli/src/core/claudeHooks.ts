@@ -82,6 +82,8 @@ export interface HooksInstallResult {
   hooksCopied: boolean;
   settingsMerged: boolean;
   settingsSkipReason?: string;
+  /** Which hook events had our entries added (or would be added, in dry-run). */
+  eventsMerged: string[];
 }
 
 /**
@@ -113,12 +115,14 @@ export async function installClaudeHooks(
     hooksCopied: !dryRun,
     settingsMerged: mergeResult.merged,
     settingsSkipReason: mergeResult.skipReason,
+    eventsMerged: mergeResult.eventsMerged,
   };
 }
 
 interface MergeResult {
   merged: boolean;
   skipReason?: string;
+  eventsMerged: string[];
 }
 
 function ourScriptInCommand(cmd?: string): string | null {
@@ -146,7 +150,7 @@ async function mergeHooksIntoSettings(
       await mkdir(dirname(settingsPath), { recursive: true });
       await writeFile(settingsPath, JSON.stringify({ hooks: ours }, null, 2) + '\n', 'utf8');
     }
-    return { merged: true };
+    return { merged: true, eventsMerged: Object.keys(ours) };
   }
 
   const raw = await readFile(settingsPath, 'utf8');
@@ -155,13 +159,13 @@ async function mergeHooksIntoSettings(
   try {
     settings = JSON.parse(raw);
   } catch {
-    return { merged: false, skipReason: 'settings.json is not valid JSON' };
+    return { merged: false, skipReason: 'settings.json is not valid JSON', eventsMerged: [] };
   }
 
   const existingHooks = (settings.hooks as HooksBlock | undefined) ?? {};
   const mergedHooks: HooksBlock = { ...existingHooks };
 
-  let anythingAdded = false;
+  const eventsMerged: string[] = [];
 
   for (const [event, ourEntries] of Object.entries(ours)) {
     const existingArr = Array.isArray(mergedHooks[event]) ? mergedHooks[event] : [];
@@ -184,12 +188,12 @@ async function mergeHooksIntoSettings(
 
     if (toAdd.length > 0) {
       mergedHooks[event] = [...existingArr, ...toAdd];
-      anythingAdded = true;
+      eventsMerged.push(event);
     }
   }
 
-  if (!anythingAdded) {
-    return { merged: false, skipReason: 'AI Context hooks already present' };
+  if (eventsMerged.length === 0) {
+    return { merged: false, skipReason: 'AI Context hooks already present', eventsMerged: [] };
   }
 
   const merged = { ...settings, hooks: mergedHooks };
@@ -198,7 +202,7 @@ async function mergeHooksIntoSettings(
     await writeFile(settingsPath, JSON.stringify(merged, null, 2) + '\n', 'utf8');
   }
 
-  return { merged: true };
+  return { merged: true, eventsMerged };
 }
 
 /**

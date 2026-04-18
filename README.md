@@ -1,373 +1,440 @@
-# AI Context: Shared Memory for Coding Agents
+# ai-context
 
-> Persistent context across sessions, tools, and teams
+**Shared memory for coding agents.** One `.ai-context/` directory. Every agent — Claude, Cursor, Codex, Antigravity — reads it. Sessions stop losing context.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-## What is This?
-
-A production-ready, open-source memory layer for **true multi-agent development** with Claude, Cursor, Codex, Gemini, Antigravity, and more. Stop losing context when switching between AI assistants or starting a new session.
-
-### The Problem
-
-- Switching between AI coding assistants loses context
-- Each agent has different configuration formats
-- No shared memory between sessions or agents
-- Architectural decisions get lost
-- Team members (human or AI) can't see what was done
-
-### The Solution
-
-A centralized `.ai-context/` directory that serves as the **single source of truth** for all AI agents, with thin configuration files that route each agent to the shared context.
-
-## Features
-
-- ✅ **Multi-Agent Support** - Works with Claude, Cursor, Codex, Antigravity, and more
-- ✅ **Session Continuity** - Mandatory session logs preserve context across sessions
-- ✅ **Architecture Decision Records** - Track decisions with rationale and consequences
-- ✅ **Zero Duplication** - Single source of truth for all project context
-- ✅ **Standards Enforcement** - Shared coding standards, git workflow, and testing requirements
-- ✅ **Task Tracking** - Lightweight task management integrated into the context system
-- ✅ **Version Controlled** - All context evolves with your project in git
-- ✅ **Session Log Reminder** - Claude Code Stop hook reminds you to create a session log before ending
-
-## Supported AI Agents
-
-| Agent | Config File | Status |
-|-------|-------------|--------|
-| Agent | Adapter File | Has CLI? |
-|-------|-------------|----------|
-| **Claude** | `CLAUDE.md` + `.claude/hooks/` | ✅ `claude` — streaming setup |
-| **Cursor** | `.cursor/rules/main.mdc` | No (IDE only) |
-| **Codex** | `AGENTS.md` | ✅ `codex` — prompt execution |
-| **Antigravity** | `.agent/rules/rules.md` | No (`agy` — no prompt execution) |
-| **Gemini** | *(no adapter yet)* | ✅ `gemini` — prompt execution |
-
-All agents share the centralized `.ai-context/` directory. Agents with a CLI (Claude, Codex, Gemini) can run the setup prompt automatically to configure your project. Other agents use the same shared context via their adapter files.
-
-## Quick Start
-
-### 1. Install AI Context
-
-```bash
-npx ai-context init
-```
-
-The interactive flow:
-1. **Confirm** target directory
-2. **Select agent adapters** to install (Claude, Cursor, Codex pre-checked; Antigravity opt-in)
-3. **Install** — copies adapter files, backs up existing files, restores project-owned content
-4. **Select CLI agent** for project configuration (claude, codex, gemini, or manual paste)
-5. **Run setup** — the CLI agent analyzes your repo and configures `.ai-context/` files
-
-Install globally for repeated use:
-
-```bash
-npm install -g ai-context
-ai-context init
-```
-
-### Other Commands
-
-```bash
-ai-context setup               # Re-run setup (pick a CLI agent to configure project)
-ai-context setup --cli claude   # Skip picker, use claude directly
-ai-context setup --print        # Print setup prompt for manual paste
-ai-context status               # Show installed version, schema, agent adapters
-ai-context version              # Show CLI version
-ai-context apply <path>         # Non-interactive install (CI/scripts)
-ai-context uninstall <path>     # Remove AI Context from a project
-ai-context init --dry-run       # Preview without writing
-ai-context init --gitignore     # Also add sessions/ and backups/ to .gitignore
-```
-
-### 2. Customize for Your Project
-
-Edit `.ai-context/project.overview.md`:
-
-```markdown
-## Project Name
-Your Awesome Project
-
-## Mission
-[One sentence describing your project's purpose]
-
-## Tech Stack
-- Language: Python 3.11
-- Framework: FastAPI
-- Database: PostgreSQL
-```
-
-### 3. Start Coding with Any Agent
-
-The AI agents will automatically:
-- Read the shared context on session start
-- Follow your defined standards
-- Log their work for continuity
-- Update task status and decisions
-
-### 4. Switch Agents Seamlessly
-
-Move between Claude, Cursor, Codex, Gemini, or Antigravity without losing context. All agents read from and write to the same `.ai-context/` directory.
-
-## Project Structure
-
-```
-your-project/
-├── .ai-context/                    # CENTRAL SOURCE OF TRUTH
-│   ├── manifest.json               # Installed AI Context version + schema metadata
-│   ├── README.md                   # Context system overview
-│   ├── project.overview.md         # START HERE - Project summary
-│   ├── project.structure.md        # Directory layout
-│   ├── project.tasks.md            # Active tasks
-│   ├── project.backlog.md          # Feature backlog
-│   ├── project.decisions.md        # Architecture decision records
-│   ├── project.changelog.md        # Version history
-│   ├── standards/                  # Coding standards
-│   │   ├── project.rules.base.md   # AI Context-owned shared rules
-│   │   ├── project.rules.md        # Project-owned rule overrides
-│   │   ├── project.workflow.base.md # AI Context-owned workflow baseline
-│   │   ├── project.workflow.md     # Project-owned workflow overrides
-│   │   ├── project.python.md       # Python standards
-│   │   └── project.testing.md      # Testing requirements
-│   └── sessions/                   # Session logs (MANDATORY)
-│
-├── .agent/rules/rules.md           # Antigravity config
-├── .claude/                        # Claude Code hooks & settings
-│   ├── hooks/
-│   │   └── session-log-check.sh    # Stop hook: reminds agent to create session log
-│   └── settings.json               # Hook configuration (merged on install)
-├── .cursor/rules/main.mdc          # Cursor config
-├── CLAUDE.md                       # Claude Code config
-├── AGENTS.md                       # Codex config
-│
-├── src/                            # Your source code (in your project)
-│
-└── README.md                       # This file
-```
-
-## How It Works
-
-### Session Start Protocol
-
-Agents use a **tiered reading strategy** to minimize context usage while maintaining orientation:
-
-**Always read** (essential orientation):
-1. `.ai-context/project.overview.md` — project state and objectives
-2. `.ai-context/project.changelog.md` — recent changes
-3. Latest file in `.ai-context/sessions/` — last session's handoff notes
-
-**Then read based on task:**
-- **Writing/modifying code** → `standards/project.rules.base.md`, `standards/project.rules.md`
-- **Planning or scoping work** → `project.tasks.md`
-- **Understanding codebase layout** → `project.structure.md`
-- **Continuing prior work** → additional files in `sessions/`
-- **Language/testing specifics** → relevant files in `standards/`
-
-> **Why tiered reading?** AI agents have finite context windows. Loading every project file upfront wastes that budget on information irrelevant to the current task — and pushes out the actual code and conversation that matter. The tiered approach front-loads only what every task needs (orientation + recent history), then lets agents pull in additional context on demand based on what they're actually doing. The result: agents stay grounded in the latest project state, carry forward session continuity, and still have room for deep, high-quality work.
-
-### During Development
-
-Agents follow shared standards:
-- Git workflow (feature branches, conventional commits)
-- Testing requirements (80% coverage minimum)
-- Code style (language-specific standards)
-- Documentation practices
-
-### Session End Protocol (Mandatory)
-
-Before ending any session, agents **must**:
-
-1. Create session log in `.ai-context/sessions/YYYY-MM-DD-topic.md`
-2. Update `.ai-context/project.tasks.md` with progress
-3. Log significant decisions in `.ai-context/project.decisions.md`
-4. Update `.ai-context/project.changelog.md` if user-facing changes
-
-This ensures perfect continuity across agents and sessions.
-
-#### Automated Reminder (Claude Code)
-
-Claude Code includes a **Stop hook** (`.claude/hooks/session-log-check.sh`) that reminds Claude to create a session log when one doesn't exist for the current date. It exits 0 (advisory) rather than blocking — using `exit 2` to force-continue would cause an infinite loop since the Stop event fires after every turn. Other agents rely on their instruction files to encourage session logging.
-
-## Customization Guide
-
-### Adding Language-Specific Standards
-
-Create files in `.ai-context/standards/`:
-- `project.typescript.md` - TypeScript conventions
-- `project.go.md` - Go coding standards
-- `project.rust.md` - Rust best practices
-
-Update agent config files to reference your new standards.
-
-### Adapting Standards
-
-Edit existing files in `.ai-context/standards/`:
-- `project.python.md` - Modify Python style guide
-- `project.testing.md` - Adjust coverage requirements
-- `project.rules.md` - Add project-specific rule overrides
-- `project.workflow.md` - Add project-specific workflow overrides
-
-AI Context-owned baseline files:
-- `project.rules.base.md`
-- `project.workflow.base.md`
-
-Keep project-specific deltas in `project.rules.md` and `project.workflow.md`; avoid copying baseline sections into local files.
-
-### Versioned Upgrades
-
-The installer tracks the applied AI Context release in `.ai-context/manifest.json`.
-
-- `version` follows semantic versioning for AI Context releases.
-- `schema_version` tracks installer-relevant `.ai-context` layout changes.
-- `apply_mode` records whether the run was a `fresh-install`, `legacy-upgrade`, `upgrade`, or `reapply`.
-- Legacy installs using `.ai-context/template.manifest.json` are migrated automatically on upgrade.
-
-Treat `manifest.json` as installer-managed metadata. Project-specific content should live in the `project.*`, `sessions/`, and local standards files instead.
-
-Custom files and directories under `.ai-context/**` are treated as project-owned by default unless they match one of the installer-managed paths above.
-
-### Adding Custom Agents
-
-To add support for a new AI agent:
-
-1. Create its configuration file (check agent's docs for format)
-2. Point it to `.ai-context/` directory
-3. Ensure it follows session logging protocol
-4. Update `.ai-context/README.md` with agent info
-
-## Architecture Decision Records
-
-AI Context uses ADRs (Architecture Decision Records) in `.ai-context/project.decisions.md` to track:
-
-- Why decisions were made
-- What alternatives were considered
-- What consequences are expected
-
-Example:
-
-```markdown
-## Decision 1: Multi-Agent AI Context System
-
-**Date**: 2025-11-20
-
-**Context**: Working with multiple AI assistants, need consistent context
-
-**Decision**: Centralized .ai-context/ directory with agent-specific configs
-
-**Consequences**:
-- ✅ Consistent context across all agents
-- ✅ Single source of truth
-- ⚠️ Requires discipline to keep updated
-```
-
-## Session Logging
-
-Session logs in `.ai-context/sessions/` are **mandatory** and serve as:
-
-- Work history documentation
-- Context for future sessions
-- Handoff notes between agents
-- Decision rationale preservation
-
-AI Context baseline provided in `.ai-context/standards/project.rules.base.md` and `.ai-context/standards/project.rules.md`, with install metadata in `.ai-context/manifest.json`.
-
-## Best Practices
-
-### Do's ✅
-
-- Update context files as you work (not just at the end)
-- Write clear, detailed session logs
-- Log architectural decisions with rationale
-- Follow the git workflow (feature branches, PRs)
-- Run tests before committing
-
-### Don'ts ❌
-
-- Don't commit directly to main
-- Don't skip session logging
-- Don't commit untested code
-- Don't ignore context file updates
-- Don't hardcode credentials
-
-## Use Cases
-
-### Solo Developer with Multiple AI Tools
-
-Switch between Cursor for feature work, Claude for refactoring, and Gemini for complex debugging — without losing context.
-
-### Team Development
-
-Multiple developers using different AI assistants maintain consistency through shared context and standards.
-
-### Long-Running Projects
-
-Preserve architectural decisions and context as your project evolves over months or years.
-
-### AI Agent Research
-
-Experiment with different AI agents while maintaining consistent project understanding.
-
-## Contributing
-
-Contributions welcome. AI Context is meant to evolve with the AI coding landscape.
-
-### How to Contribute
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-improvement`)
-3. Make your changes
-4. Follow the existing standards in `.ai-context/standards/`
-5. Create session log documenting your changes
-6. Submit a Pull Request
-
-### Ideas for Contributions
-
-- Support for additional AI agents
-- Language-specific standard packs (TypeScript, Go, Rust, etc.)
-- Integration examples (CI/CD, linting, formatting)
-- Improved session log templates
-- Documentation improvements
-
-## FAQ
-
-### Q: Do I need all the AI agents?
-
-No! Use any combination. Select only the adapters you need during `ai-context init`. Each agent config file is independent.
-
-### Q: Can I use this for non-AI development?
-
-Yes! The context system works great for human-only teams too. Session logs become work journals, and standards ensure consistency.
-
-### Q: How do I handle sensitive information?
-
-Never commit credentials to `.ai-context/`. Use environment variables and document requirements in `project.overview.md`.
-
-### Q: What if an agent doesn't follow the rules?
-
-Agent configs may need adjustment based on your specific agent version. Check agent-specific docs and update config files as needed.
-
-### Q: Can I customize the structure?
-
-Absolutely. Adapt `.ai-context/` structure to your needs. Just keep agents synced by updating their config files.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-AI Context synthesizes best practices from:
-- Architecture Decision Records (ADRs)
-- Multi-agent AI development workflows
-- Modern software development practices
-- Open source collaboration patterns
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/dkothule/ai-context/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/dkothule/ai-context/discussions)
+[![npm](https://img.shields.io/npm/v/@dkothule/ai-context.svg)](https://www.npmjs.com/package/@dkothule/ai-context) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 ---
 
-**Star this repo** if you find it useful! Contributions and feedback welcome.
+## Why
+
+You ask Claude to refactor something. Tomorrow you switch to Cursor. It has no idea what happened yesterday. Next week a teammate uses Codex — they have even less.
+
+`ai-context` fixes this with a tiny convention:
+
+- One shared directory (`.ai-context/`) every agent reads on session start.
+- Thin "adapter" files (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/…`) point the agents there.
+- Mandatory session logs preserve decisions and state between sessions.
+- Hooks guarantee context isn't lost when Claude Code auto-compacts.
+
+Nothing fancy — just a file layout and a few scripts that work.
+
+---
+
+## Install
+
+```bash
+npx @dkothule/ai-context init
+```
+
+That's it. Interactive prompts pick your agents (Claude, Cursor, Codex pre-checked; Antigravity opt-in), then an LLM configures the context files from your repo.
+
+Once installed, all commands are available as `ai-context <cmd>` (no scope prefix needed — scope is just the npm package name).
+
+### What `init` does (≈ 30 seconds)
+
+1. **Asks you** which agent adapters to install.
+2. **Backs up** existing `.ai-context/`, `CLAUDE.md`, `AGENTS.md`, and any current agent adapters to `.ai-context-backups/<timestamp>/`. Nothing destructive happens without a safety copy.
+3. **Copies templates** into your project: generic `.ai-context/` files, thin adapter wrappers (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/main.mdc`, etc.), Claude Code hooks under `.claude/hooks/`.
+4. **Runs a setup prompt** via your chosen CLI (usually `claude -p`). The agent reads your repo and personalizes `project.overview.md`, `project.structure.md`, and any language/testing standards it detects (TypeScript, Python, Go, etc.).
+5. **Writes an install log** to `.ai-context/logs/install/<timestamp>.md` so you can see exactly what happened.
+
+After `init`, start a session with any supported agent — it will read `.ai-context/` on its own. No further configuration needed.
+
+### Other ways to install / upgrade
+
+```bash
+npm install -g @dkothule/ai-context  # global install for repeat use
+ai-context init
+
+npx @dkothule/ai-context@latest init # upgrade to latest — safely handles existing installs
+
+ai-context apply --agents claude,cursor,codex   # non-interactive (for CI / scripts)
+ai-context init --dry-run            # preview without writing
+ai-context init --gitignore          # also add sessions/ + backups to .gitignore
+```
+
+**Requirements:** Node 18+. Any Unix-like shell for the Claude hooks (macOS, Linux, WSL, Git Bash on Windows).
+
+---
+
+## Commands
+
+Six commands, each does one thing:
+
+| Command | What it does |
+|---|---|
+| `ai-context init` | Install or upgrade. Interactive prompts for agents + setup. |
+| `ai-context apply` | Same as `init`, but non-interactive (for CI/scripts). |
+| `ai-context setup` | Re-run just the setup prompt (your agent configures `.ai-context/`). |
+| `ai-context check-drift` | Audit `.ai-context/` vs. your actual code. Optionally apply patches. |
+| `ai-context compact` | Archive old session logs to reduce noise. |
+| `ai-context status` | Show installed version + schema. |
+| `ai-context uninstall` | Remove everything. |
+
+All LLM-driven commands (`setup`, `check-drift`, `compact`) work the same way: try the local `claude` CLI first with pre-approved permissions, fall back to copying a prompt to your clipboard if the CLI isn't available.
+
+**Getting help:** every command supports `--help` (or `-h`) for full flag reference:
+
+```bash
+ai-context --help                    # list all commands
+ai-context check-drift --help        # flags for a specific command
+ai-context help check-drift          # same — subcommand form
+```
+
+---
+
+## What gets installed
+
+```
+your-project/
+├── .ai-context/                 # shared context (the whole point)
+│   ├── project.overview.md      # what this project is
+│   ├── project.tasks.md         # what's in flight
+│   ├── project.decisions.md     # architecture decisions (ADRs)
+│   ├── project.changelog.md     # user-visible changes
+│   ├── project.backlog.md       # ideas, deferred work
+│   ├── project.structure.md     # directory layout
+│   ├── plans/                   # design plans (write before non-trivial work)
+│   ├── sessions/                # session logs (written at session end)
+│   │   └── _archive/            # rollups of old sessions (don't read at session start)
+│   ├── standards/               # coding + workflow rules
+│   └── logs/                    # audit log of every ai-context command run
+│
+├── CLAUDE.md                    # thin wrapper → @AGENTS.md
+├── AGENTS.md                    # thin wrapper → points to .ai-context/
+├── .cursor/rules/main.mdc       # Cursor adapter
+├── .agent/rules/rules.md        # Antigravity adapter (opt-in)
+├── .claude/
+│   ├── hooks/                   # context-preservation hooks (see below)
+│   └── settings.json            # hook registrations
+└── your source code...
+```
+
+**Principle**: adapter files are thin. All real content lives in `.ai-context/`, loaded on demand by each agent. This keeps context windows clean — agents read only what they need for the current task.
+
+---
+
+## How agents use it
+
+On session start, every agent follows the same tiered reading protocol:
+
+**Always read:**
+1. `project.overview.md` — project state and objectives
+2. `project.changelog.md` — recent user-visible changes
+3. Latest file in `sessions/` (excluding `_archive/`) — last session's handoff
+
+**Then read based on task:**
+- Writing code → `standards/project.rules.base.md` + `project.rules.md`
+- Planning non-trivial work → `project.tasks.md` + `plans/`
+- Continuing prior work → additional files in `sessions/`
+- Language/testing specifics → relevant files in `standards/`
+
+At session end, the agent writes a session log, updates `project.tasks.md`, logs decisions to `project.decisions.md`, and notes user-visible changes in `project.changelog.md`.
+
+---
+
+## Claude hooks
+
+Claude Code gets two hooks out of the box:
+
+- **`Stop` hook** — reminds Claude to write a session log before ending a session. Advisory (never blocks).
+- **`PreCompact` hook** — before any compaction (`/compact` or auto-compact), writes the transcript to `sessions/YYYY-MM-DD-HHMM-precompact-autosave.md` so context is preserved on disk even if Claude's context window gets dropped.
+- **`SessionStart(compact)` hook** — in the fresh session after compaction, injects a reminder to curate the autosave into a proper session log and delete it.
+
+Result: you can never lose working context to compaction. The autosave captures it, the reminder ensures it gets curated next turn.
+
+---
+
+## Drift detection
+
+Over time, `.ai-context/` drifts from your actual code. Files get renamed, architecture evolves, the overview goes stale. `check-drift` catches this:
+
+```bash
+ai-context check-drift                # analyze + write report to .ai-context/logs/drift/
+ai-context check-drift --static-only  # fast local checks only (no LLM)
+ai-context check-drift --copy         # write report + copy follow-up prompt to clipboard
+ai-context check-drift --print        # print the analysis prompt to stdout (no file, no execute)
+ai-context check-drift --dry-run      # preview what would happen; no files written
+```
+
+Two layers:
+
+1. **Static checks** (local, fast): broken refs in `project.structure.md`, stale `last_updated` frontmatter, "In Progress" tasks with no recent commits, backlog items older than 90 days.
+2. **LLM analysis** (optional, via `claude -p`): compares overview/structure/decisions against recent git log + tree, produces a structured report with severity-tagged patches (`[significant]`, `[moderate]`, `[minor]`).
+
+Reports land in `.ai-context/logs/drift/<timestamp>-drift.md`.
+
+### Auto-applying patches with `--fix`
+
+`--fix [severity]` runs drift analysis, **then** invokes a second LLM pass that reads the report and applies matching patches. The severity argument is a **cutoff** — patches at that severity and anything more critical are applied:
+
+```bash
+ai-context check-drift --fix               # default: only [significant] patches
+ai-context check-drift --fix=significant   # same as above — most critical only
+ai-context check-drift --fix=moderate      # [significant] + [moderate]
+ai-context check-drift --fix=minor         # everything (includes cleanup/polish items)
+ai-context check-drift --fix=all           # alias for minor — full YOLO
+ai-context check-drift --fix --dry-run     # print what would be patched, don't write anything
+```
+
+Tip: snapshot `.ai-context/` first (`cd .ai-context && git add -A && git commit -m "pre-fix"`) if you want an easy rollback. The fix step edits files in place; reviewing a clean diff afterwards is the safety net.
+
+---
+
+## Session compaction
+
+Session logs accumulate. After a few months you'll have dozens; after a year, hundreds. That noise makes "read the latest session at session start" less useful because there's too much "latest" to sort through.
+
+`ai-context compact` summarizes old sessions into a single rollup file and deletes the originals — keeping `sessions/` focused on recent, actionable context without losing long-term history.
+
+```bash
+ai-context compact --dry-run                 # preview what would be archived (safe)
+ai-context compact                           # archive > 30 days old, keep latest 10
+ai-context compact --older-than 90           # only > 90 days old
+ai-context compact --keep 20                 # always preserve the newest 20
+ai-context compact --older-than 90 --keep 50 # combine
+ai-context compact --copy                    # prompt → clipboard, skip CLI execution
+ai-context compact --print                   # prompt → stdout, for pipes
+ai-context compact --cli codex               # force a specific CLI
+```
+
+**What happens:**
+1. Selects sessions that are older than `--older-than` days AND outside the latest `--keep`.
+2. Builds an LLM prompt listing the selected files + a rollup template.
+3. The agent reads each file, extracts decisions / open threads / file knowledge, writes a rollup at `.ai-context/sessions/_archive/YYYY-MM-rollup.md`, deletes the originals.
+4. An operation log lands at `.ai-context/logs/compact/<ts>.md`.
+
+**Rollup format** (`sessions/_archive/YYYY-MM-rollup.md`):
+
+```markdown
+---
+archived: true
+range_start: 2026-02-27
+range_end: 2026-03-03
+source_count: 4
+---
+
+# Archived sessions 2026-02-27 → 2026-03-03
+
+## Decisions carried forward
+- ADRs 007–011 added for iolo agent architecture; source: 2026-02-27-bootstrap-ai-context.md
+- ...
+
+## Open threads at end of range
+- Architecture diagram not yet created; source: ...
+
+## File/area knowledge
+- Iolo/knowledge/: runtime content lives under live/, staging area under staging/
+
+## Archived sessions
+- 2026-02-27-bootstrap-ai-context.md — one-line summary
+- ...
+```
+
+`archived: true` in frontmatter + the `_archive/` README tell agents to skip this folder at session start. `grep` still works when you need a specific historical answer.
+
+If the result isn't what you wanted → see **Safety & rollback** below.
+
+---
+
+## Audit trail
+
+Every command that produces meaningful output writes a log to `.ai-context/logs/`:
+
+```
+.ai-context/logs/
+├── install/       # ai-context init / apply
+├── setup/         # ai-context setup
+├── drift/         # ai-context check-drift reports
+└── compact/       # ai-context compact operations
+```
+
+Logs are append-only — past runs aren't overwritten on upgrade. Review them to see what `ai-context` did to your project, when, and what the agent said.
+
+Most adopters gitignore `.ai-context/logs/` since logs are machine-local and noisy.
+
+---
+
+## Safety & rollback
+
+Everything `ai-context` does is reversible. Three scenarios, three recovery paths.
+
+### Before running anything risky — snapshot `.ai-context/`
+
+If you track `.ai-context/` in git (recommended), make a snapshot before any LLM-driven command. This gives you a one-command rollback:
+
+```bash
+cd .ai-context
+git add -A && git commit -m "snapshot before <command>"
+cd ..
+
+# run whatever
+ai-context check-drift --fix
+# or
+ai-context compact
+# or
+ai-context init
+```
+
+If the outcome isn't what you want:
+
+```bash
+cd .ai-context
+git checkout -- .           # revert tracked changes
+git clean -fd               # remove untracked files (rollup, logs, etc.)
+```
+
+### `check-drift --fix` edited files you don't like
+
+```bash
+cd .ai-context
+git diff project.structure.md project.overview.md   # review what changed
+git checkout -- project.structure.md                 # revert one file
+# or
+git checkout -- .                                    # revert everything
+```
+
+The original drift report stays in `logs/drift/<ts>-drift.md` — you can re-read what was supposed to change and cherry-pick manually.
+
+### `compact` deleted sessions you wanted back
+
+```bash
+cd .ai-context
+git checkout -- sessions/                           # restores deleted session files
+rm sessions/_archive/<YYYY-MM>-rollup.md            # remove the rollup (it's untracked)
+```
+
+The rollup file itself is valuable reading before deletion — it distilled what was in those sessions. Review it first, then decide.
+
+### `init` / `apply` (upgrade) went wrong
+
+Every install backs up the pre-install state automatically. No git required:
+
+```bash
+ls .ai-context-backups/                              # list timestamped backups
+# 20260418-081533-19339/   ← pick one
+
+TARGET=20260418-081533-19339
+# restore (overwrites current state):
+rm -rf .ai-context .cursor .agent .claude/hooks AGENTS.md CLAUDE.md
+cp -R .ai-context-backups/$TARGET/* .
+```
+
+Or just re-run `ai-context init` against any version — the installer handles downgrades and re-applies cleanly.
+
+### Full uninstall
+
+```bash
+ai-context uninstall --dry-run                       # preview what will be removed
+ai-context uninstall                                 # remove everything ai-context installed
+```
+
+Your source code, git history, and non-AI-Context files are never touched by any of these commands.
+
+---
+
+## Customization
+
+### Agent adapters are thin on purpose
+
+`CLAUDE.md` is literally one line (`@AGENTS.md`) plus a few Claude-specific notes. `AGENTS.md` is ~40 lines. Neither duplicates content from `.ai-context/`. If you want to add project-specific rules, edit `.ai-context/standards/project.rules.md` — not the adapters.
+
+### Language/testing standards are created per-project
+
+The installer doesn't ship example `project.python.md` or `project.testing.md`. Instead, `ai-context init`'s setup prompt analyzes your repo and creates the right standards files based on what it finds (TypeScript, Python, Go, etc.). You can always add more by hand later.
+
+### Sessions stay local if you want
+
+```bash
+ai-context init --gitignore        # adds .ai-context/sessions/ and backups to .gitignore
+```
+
+Many teams keep session logs local (personal) while committing the rest of `.ai-context/`. Your call.
+
+---
+
+## Supported agents
+
+| Agent | Adapter | CLI support for `setup`/`check-drift`/`compact` |
+|---|---|---|
+| **Claude Code** | `CLAUDE.md` + `.claude/hooks/` + `settings.json` | ✅ `claude -p` (primary) |
+| **Cursor** | `.cursor/rules/main.mdc` | IDE only — paste from clipboard |
+| **Codex / OpenAI agents** | `AGENTS.md` | ✅ `codex` (prompt execution) |
+| **Google Antigravity** | `.agent/rules/rules.md` | IDE only |
+| **Google Gemini** | (no adapter) | ✅ `gemini -p` (if installed) |
+| **GitHub Copilot** | _(not shipped — incompatible with Copilot's auto-review + can't resolve relative links; backlog: generate a self-contained instructions file)_ | N/A |
+
+All agents read `.ai-context/`. The CLI column affects whether `ai-context setup/check-drift/compact` can execute the LLM prompt directly vs. copy it to your clipboard for manual paste.
+
+---
+
+## FAQ
+
+**Do I need all the agents?**
+No. Pick whatever combo you use during `init`. Rest of the flow is identical.
+
+**Can I use this without AI?**
+Yes. Session logs become work journals, standards ensure consistency. Works fine for human-only teams.
+
+**How do I handle secrets?**
+Never commit them to `.ai-context/`. Reference environment variables in `project.overview.md` — don't store values.
+
+**What if I want to roll back a change?**
+Every action is reversible. See the [Safety & rollback](#safety--rollback) section for recovery paths after `check-drift --fix`, `compact`, or `init`/upgrade.
+
+**Does it work on Windows?**
+Yes, via Git Bash or WSL. Native PowerShell equivalents are on the backlog.
+
+**What's the upgrade path?**
+Just re-run `npx @dkothule/ai-context@latest init`. The installer detects existing installs, backs up, upgrades the installer-managed files, and preserves everything project-owned (your overview, tasks, decisions, history, custom standards).
+
+**Something went wrong — how do I see what happened?**
+Check `.ai-context/logs/install/` for the latest install, `.ai-context/logs/setup/` for agent output, `.ai-context-backups/<timestamp>/` for pre-upgrade state.
+
+---
+
+## Architecture
+
+Deep dive with mermaid diagrams covering every command and flow: **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
+
+Short version:
+
+- **Single source of truth**: `.ai-context/` holds all governance. Adapters are thin pointers.
+- **Base vs. local standards**: `project.rules.base.md` ships with the tool (upgraded automatically); `project.rules.md` is project-owned (never overwritten).
+- **Ownership-based restore**: on upgrade, tool-owned files are replaced, project-owned files are restored from backup by path pattern. Custom files you add are preserved.
+- **Session logs are mandatory**: enforced by Claude's Stop hook as a reminder, by the adapter files as an instruction, and by the Session Start protocol as a reading habit.
+- **Hooks, not humans, preserve compaction context**: PreCompact autosaves before Claude Code drops the transcript; SessionStart(compact) reminds the next session to curate.
+
+---
+
+## On the horizon
+
+Ideas on the near-term roadmap. Directions, not commitments — open an issue if one would unblock you.
+
+- **Windows-native hooks** — drop the Git Bash / WSL dependency with PowerShell or Node equivalents for the three Claude hooks.
+- **Self-contained GitHub Copilot adapter** — a generator command that builds a flat `.github/copilot-instructions.md` by synthesizing `.ai-context/` content, since Copilot can't resolve relative links the way CLAUDE.md / AGENTS.md can.
+- **First-class Codex support** — non-interactive permission flags for the `codex` CLI so `setup` / `check-drift` / `compact` run cleanly end-to-end instead of falling back to clipboard.
+- **Plugin system** — register custom static drift checks or additional "Read First" files without forking the tool.
+- **`ai-context export`** — dump a flattened snapshot of `.ai-context/` (markdown bundle + manifest) for offline sharing, incident tickets, or attaching to bug reports.
+- **`check-drift --fix` operation log** — persist what the fix pass edited/skipped alongside the drift report (today only the analysis is logged; the apply step is terminal-only).
+
+---
+
+## Contributing
+
+PRs welcome. The tool should stay small and sharp.
+
+1. Fork, branch off `main`.
+2. `cd packages/cli && npm install && npm test` to confirm the 73-test suite passes.
+3. Follow standards in `.ai-context/standards/`.
+4. Write a session log for non-trivial changes.
+5. Open a PR.
+
+For ideas not listed above, open a GitHub issue — discussion before code is welcome.
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE).

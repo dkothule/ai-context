@@ -45,8 +45,10 @@ export async function restoreProjectOwnedFiles(
     // the fresh template copy. This is intentional: template files for
     // project-owned paths (e.g. project.overview.md) are replaced with the
     // project's actual content from backup.
+    // preserveTimestamps keeps the original mtimes through the backup → restore
+    // cycle so session-log age tracking (used by `ai-context compact`) stays accurate.
     await mkdir(join(targetFile, '..'), { recursive: true });
-    await cp(absPath, targetFile);
+    await cp(absPath, targetFile, { preserveTimestamps: true });
     count++;
   }
 

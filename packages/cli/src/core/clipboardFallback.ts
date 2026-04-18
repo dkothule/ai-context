@@ -59,20 +59,28 @@ export async function executeOrCopy(opts: ExecuteOrCopyOptions): Promise<Execute
   // mode === 'auto' — try CLI first
   const result = await runPromptContentViaCLI(prompt, { preferredCLI, permissionMode });
 
-  if (result.success && !result.hadPermissionDenials) {
-    log.done(`${commandName} completed via ${pc.bold(result.cli ?? 'CLI')}.`);
+  // Treat as executed if the CLI returned a real stdout/result, even if some
+  // non-edit tool calls (e.g. Bash) hit permission_denials. The agent routinely
+  // works around individual denials and completes the task — we shouldn't
+  // discard its output by falling back to clipboard.
+  if (result.success && result.stdout && result.stdout.trim().length > 0) {
+    if (result.hadPermissionDenials) {
+      log.done(`${commandName} completed via ${pc.bold(result.cli ?? 'CLI')} (some non-edit tools were denied; agent worked around them).`);
+    } else {
+      log.done(`${commandName} completed via ${pc.bold(result.cli ?? 'CLI')}.`);
+    }
     return {
       outcome: 'executed',
       cli: result.cli,
       stdout: result.stdout,
-      hadPermissionDenials: false,
+      hadPermissionDenials: result.hadPermissionDenials,
     };
   }
 
-  // CLI execution failed OR ran but had permission denials → clipboard fallback
-  const reason = result.hadPermissionDenials
-    ? 'some edits were denied by the CLI'
-    : result.error ?? 'CLI execution failed';
+  // CLI execution truly failed (no usable stdout) → clipboard fallback
+  const reason = !result.success
+    ? result.error ?? 'CLI execution failed'
+    : 'CLI returned no output';
   return copyToClipboardWithStatus(prompt, commandName, pasteHint, reason);
 }
 

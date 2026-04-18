@@ -10,6 +10,7 @@ import { installClaudeHooks } from './claudeHooks.js';
 import { renameLegacyStandards } from './legacyStandards.js';
 import { restoreProjectOwnedFiles } from './restore.js';
 import { appendGitignoreEntries } from './gitignore.js';
+import { writeCommandLog, isoStamp } from './logWriter.js';
 import type { AgentId } from './copyTemplates.js';
 import type { Manifest, ApplyMode } from './manifest.js';
 
@@ -46,7 +47,10 @@ export interface InstallResult {
   copiedPaths: string[];
   hooksMerged: boolean;
   hooksMergeSkipReason?: string;
+  hooksEventsMerged: string[];
   gitignoreAdded: boolean;
+  /** Path to the install log written under .ai-context/logs/install/ (null in dry-run). */
+  logPath: string | null;
 }
 
 /**
@@ -68,10 +72,17 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     agents,
     gitignore = false,
     dryRun = false,
-    onStep = () => {},
-    onSkip = () => {},
-    onWarn = () => {},
+    onStep: userOnStep = () => {},
+    onSkip: userOnSkip = () => {},
+    onWarn: userOnWarn = () => {},
   } = options;
+
+  // Capture all messages for the install log while still forwarding to the caller.
+  const captured: string[] = [];
+  const onStep = (msg: string) => { captured.push(`- ${msg}`); userOnStep(msg); };
+  const onSkip = (msg: string) => { captured.push(`- (skip) ${msg}`); userOnSkip(msg); };
+  const onWarn = (msg: string) => { captured.push(`- (warn) ${msg}`); userOnWarn(msg); };
+  const startedAt = isoStamp();
 
   // Ensure target exists
   if (!existsSync(targetDir)) {
@@ -125,12 +136,10 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
   const templateClaudeDir = join(TEMPLATES_DIR, 'claude');
   const hooksResult = await installClaudeHooks(templateClaudeDir, targetDir, dryRun);
   if (hooksResult.settingsMerged) {
-    onStep('Merged Stop hook into .claude/settings.json');
+    const events = hooksResult.eventsMerged.join(', ');
+    onStep(`Merged Claude hook(s) into .claude/settings.json: ${events}`);
   } else if (hooksResult.settingsSkipReason) {
     onSkip(`hooks merge skipped: ${hooksResult.settingsSkipReason}`);
-    if (hooksResult.settingsSkipReason.includes('hooks')) {
-      onWarn('Add the Stop hook manually to .claude/settings.json if needed.');
-    }
   }
 
   // 6. Rename legacy standards
@@ -183,6 +192,32 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     else onSkip('.gitignore entries already present');
   }
 
+  // 10. Write install log (always, even on dry-run we skip the write itself)
+  let logPath: string | null = null;
+  if (!dryRun) {
+    const logContent = buildInstallLog({
+      startedAt,
+      finishedAt: isoStamp(),
+      targetDir,
+      applyMode,
+      version: sourceManifest.version,
+      schemaVersion: sourceManifest.schema_version,
+      previousVersion: existingManifest?.version ?? null,
+      agents: agents ?? [],
+      backupDir,
+      restoredCount,
+      copiedPaths,
+      hooksResult,
+      gitignoreAdded,
+      stepLog: captured,
+    });
+    logPath = await writeCommandLog({
+      targetDir,
+      category: 'install',
+      content: logContent,
+    });
+  }
+
   return {
     applyMode,
     version: sourceManifest.version,
@@ -193,6 +228,59 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     copiedPaths,
     hooksMerged: hooksResult.settingsMerged,
     hooksMergeSkipReason: hooksResult.settingsSkipReason,
+    hooksEventsMerged: hooksResult.eventsMerged,
     gitignoreAdded,
+    logPath,
   };
+}
+
+interface BuildLogArgs {
+  startedAt: string;
+  finishedAt: string;
+  targetDir: string;
+  applyMode: ApplyMode;
+  version: string;
+  schemaVersion: number;
+  previousVersion: string | null;
+  agents: AgentId[];
+  backupDir: string | null;
+  restoredCount: number;
+  copiedPaths: string[];
+  hooksResult: { settingsMerged: boolean; eventsMerged: string[]; settingsSkipReason?: string };
+  gitignoreAdded: boolean;
+  stepLog: string[];
+}
+
+function buildInstallLog(a: BuildLogArgs): string {
+  return [
+    '---',
+    `command: ai-context init/apply`,
+    `apply_mode: ${a.applyMode}`,
+    `version: ${a.version}`,
+    `schema_version: ${a.schemaVersion}`,
+    `previous_version: ${a.previousVersion ?? 'null'}`,
+    `started_at: ${a.startedAt}`,
+    `finished_at: ${a.finishedAt}`,
+    '---',
+    '',
+    '# Install log',
+    '',
+    `- **Target**: \`${a.targetDir}\``,
+    `- **Apply mode**: ${a.applyMode}`,
+    `- **Version**: ${a.previousVersion ? `${a.previousVersion} → ${a.version}` : a.version} (schema v${a.schemaVersion})`,
+    `- **Agents**: ${a.agents.length ? a.agents.join(', ') : '(none specified)'}`,
+    `- **Backup**: ${a.backupDir ?? '(none)'}`,
+    `- **Restored project-owned files**: ${a.restoredCount}`,
+    `- **Hooks merged**: ${a.hooksResult.settingsMerged ? a.hooksResult.eventsMerged.join(', ') : `skipped (${a.hooksResult.settingsSkipReason ?? 'unknown'})`}`,
+    `- **Gitignore updated**: ${a.gitignoreAdded ? 'yes' : 'no'}`,
+    '',
+    '## Step log',
+    '',
+    ...a.stepLog,
+    '',
+    '## Copied paths',
+    '',
+    ...a.copiedPaths.map((p) => `- ${p}`),
+    '',
+  ].join('\n');
 }

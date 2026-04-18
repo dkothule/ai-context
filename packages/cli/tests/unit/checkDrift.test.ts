@@ -40,6 +40,21 @@ describe('runStaticChecks', () => {
     expect(brokenRefs.some((f) => f.message.includes('src/main.ts'))).toBe(false);
   });
 
+  it('does not flag bare-basename refs that resolve under .ai-context/standards/', async () => {
+    // Simulate a structure.md that lists `project.python.md` under a "standards/" section (nested bullet).
+    await writeFile(
+      join(contextDir, 'project.structure.md'),
+      '# Structure\n\nStandards:\n- `project.python.md`\n- `project.rules.base.md`\n',
+    );
+    // Create the files at their real locations under .ai-context/standards/
+    await mkdir(join(contextDir, 'standards'), { recursive: true });
+    await writeFile(join(contextDir, 'standards', 'project.python.md'), '# py');
+    await writeFile(join(contextDir, 'standards', 'project.rules.base.md'), '# rules');
+
+    const findings = await runStaticChecks(tmpDir);
+    expect(findings.filter((f) => f.kind === 'broken-ref')).toEqual([]);
+  });
+
   it('does not flag CLI flags or function-syntax backticks as broken refs', async () => {
     await writeFile(
       join(contextDir, 'project.structure.md'),

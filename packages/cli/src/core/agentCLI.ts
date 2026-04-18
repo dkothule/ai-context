@@ -56,10 +56,30 @@ const CLI_REGISTRY: Record<string, CLIConfig> = {
     pingArgs: ['-p', 'respond ok'],
     // --permission-mode acceptEdits pre-grants file-edit permissions so
     // non-interactive runs don't stall on per-Edit permission prompts.
+    // --allowedTools pre-approves read-only Bash patterns the setup/drift
+    // prompts commonly use (diff, find, cat, ls, git diff/log/status) so
+    // the agent doesn't hit permission_denials while investigating.
     // Users can override via `ai-context <cmd> --permission-mode <mode>`.
-    promptArgs: ['-p', '--permission-mode', 'acceptEdits', '-'],
+    promptArgs: [
+      '-p',
+      '--permission-mode', 'acceptEdits',
+      '--allowedTools',
+      'Bash(diff:*)', 'Bash(find:*)', 'Bash(cat:*)', 'Bash(ls:*)',
+      'Bash(git diff:*)', 'Bash(git log:*)', 'Bash(git status:*)',
+      'Bash(rg:*)', 'Bash(tree:*)',
+      '-',
+    ],
     streaming: {
-      args: ['-p', '--permission-mode', 'acceptEdits', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '-'],
+      args: [
+        '-p',
+        '--permission-mode', 'acceptEdits',
+        '--allowedTools',
+        'Bash(diff:*)', 'Bash(find:*)', 'Bash(cat:*)', 'Bash(ls:*)',
+        'Bash(git diff:*)', 'Bash(git log:*)', 'Bash(git status:*)',
+        'Bash(rg:*)', 'Bash(tree:*)',
+        '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+        '-',
+      ],
       extractText: (event) => {
         if (event.type === 'stream_event') {
           const inner = event.event as Record<string, unknown> | undefined;

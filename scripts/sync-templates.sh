@@ -71,6 +71,7 @@ TOOL_OWNED_PATHS=(
   "sessions/_template.md"
   "sessions/_archive/README.md"
   "plans/_template.md"
+  "logs/README.md"
 )
 
 if $DRY_RUN; then
@@ -79,7 +80,7 @@ if $DRY_RUN; then
     echo "    [dry-run] cp $REPO_ROOT/.ai-context/$rel -> $DEST/ai-context/$rel"
   done
 else
-  mkdir -p "$DEST/ai-context" "$DEST/ai-context/standards" "$DEST/ai-context/sessions/_archive" "$DEST/ai-context/plans"
+  mkdir -p "$DEST/ai-context" "$DEST/ai-context/standards" "$DEST/ai-context/sessions/_archive" "$DEST/ai-context/plans" "$DEST/ai-context/logs"
   for rel in "${TOOL_OWNED_PATHS[@]}"; do
     src="$REPO_ROOT/.ai-context/$rel"
     dst="$DEST/ai-context/$rel"

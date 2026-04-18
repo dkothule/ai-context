@@ -1,11 +1,12 @@
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { select } from '@inquirer/prompts';
 import { getRegisteredCLIs, checkCLIStatus } from './agentCLI.js';
 import type { KnownCLI } from './agentCLI.js';
 import { executeOrCopy } from './clipboardFallback.js';
-import type { ExecuteOrCopyMode } from './clipboardFallback.js';
+import type { ExecuteOrCopyMode, ExecuteOrCopyResult } from './clipboardFallback.js';
+import { writeCommandLog, isoStamp } from './logWriter.js';
 import type { ApplyMode } from './manifest.js';
 import { log } from '../ui/logger.js';
 import pc from 'picocolors';
@@ -104,10 +105,9 @@ export async function runSetup(
     pasteHint: 'the agent will read .ai-context/ and update it for this project.',
   });
 
-  if (result.outcome === 'executed' && result.stdout) {
-    const logPath = await writeSetupLog(targetDir, result.cli ?? 'unknown', result.stdout);
-    log.info(`Output saved to ${pc.dim(logPath)}`);
-  }
+  // Always persist a setup log, regardless of outcome (executed | clipboard | printed | failed).
+  const logPath = await writeSetupLogEntry(targetDir, applyMode, cli, result);
+  if (logPath) log.info(`Setup log: ${pc.dim(logPath)}`);
 
   return result.outcome !== 'failed';
 }
@@ -124,11 +124,41 @@ export async function runWithCLI(targetDir: string, applyMode: ApplyMode, cli: K
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function writeSetupLog(targetDir: string, cli: string, output: string): Promise<string> {
-  const sessionsDir = join(targetDir, '.ai-context', 'sessions');
-  await mkdir(sessionsDir, { recursive: true });
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const logFile = join(sessionsDir, `setup-${cli}-${ts}.log`);
-  await writeFile(logFile, output, 'utf8');
-  return logFile;
+async function writeSetupLogEntry(
+  targetDir: string,
+  applyMode: ApplyMode,
+  cli: KnownCLI | undefined,
+  result: ExecuteOrCopyResult,
+): Promise<string | null> {
+  const content = [
+    '---',
+    `command: ai-context setup`,
+    `apply_mode: ${applyMode}`,
+    `cli: ${cli ?? result.cli ?? 'none'}`,
+    `outcome: ${result.outcome}`,
+    `had_permission_denials: ${result.hadPermissionDenials ?? false}`,
+    `finished_at: ${isoStamp()}`,
+    '---',
+    '',
+    '# Setup log',
+    '',
+    `- **Apply mode**: ${applyMode}`,
+    `- **CLI**: ${cli ?? result.cli ?? 'none'}`,
+    `- **Outcome**: ${result.outcome}`,
+    result.error ? `- **Error**: ${result.error}` : '',
+    result.hadPermissionDenials ? `- **Note**: agent hit some non-edit tool denials (Bash) but completed its work.` : '',
+    '',
+    '## Agent output',
+    '',
+    result.stdout && result.stdout.trim().length > 0
+      ? result.stdout
+      : '(no output captured — outcome was not "executed" or the agent produced no streamed result)',
+    '',
+  ].filter((l) => l !== '').join('\n');
+
+  return writeCommandLog({
+    targetDir,
+    category: 'setup',
+    content,
+  });
 }
