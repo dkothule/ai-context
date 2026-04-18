@@ -1,0 +1,97 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdir, writeFile, rm, readFile } from 'fs/promises';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { randomBytes } from 'crypto';
+import { backupPath, createBackupDir, skipDotGit } from '../../src/core/backup.js';
+
+let tmpDir: string;
+
+beforeEach(async () => {
+  tmpDir = join(tmpdir(), 'ai-context-backup-test-' + randomBytes(6).toString('hex'));
+  await mkdir(tmpDir, { recursive: true });
+});
+
+afterEach(async () => {
+  await rm(tmpDir, { recursive: true, force: true });
+});
+
+describe('skipDotGit', () => {
+  it('returns false for `.git` basename', () => {
+    expect(skipDotGit('/foo/bar/.git')).toBe(false);
+    expect(skipDotGit('.git')).toBe(false);
+  });
+
+  it('returns true for non-.git paths', () => {
+    expect(skipDotGit('/foo/bar/src')).toBe(true);
+    expect(skipDotGit('/foo/bar/.gitignore')).toBe(true);
+    expect(skipDotGit('/foo/.gitkeep')).toBe(true);
+  });
+});
+
+describe('backupPath — nested .git handling', () => {
+  it('excludes .ai-context/.git/ directory from the backup', async () => {
+    // Seed a .ai-context/ with a nested .git/ directory
+    await mkdir(join(tmpDir, '.ai-context', '.git', 'refs', 'heads'), { recursive: true });
+    await writeFile(join(tmpDir, '.ai-context', '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    await writeFile(join(tmpDir, '.ai-context', '.git', 'config'), '[core]\n\trepositoryformatversion = 0\n');
+    await writeFile(join(tmpDir, '.ai-context', 'project.overview.md'), '# Overview\n');
+    await mkdir(join(tmpDir, '.ai-context', 'sessions'), { recursive: true });
+    await writeFile(join(tmpDir, '.ai-context', 'sessions', '2026-04-17-test.md'), '# Session\n');
+
+    const backupRoot = await createBackupDir(tmpDir);
+    const ok = await backupPath(tmpDir, '.ai-context', backupRoot);
+
+    expect(ok).toBe(true);
+    expect(existsSync(join(backupRoot, '.ai-context', 'project.overview.md'))).toBe(true);
+    expect(existsSync(join(backupRoot, '.ai-context', 'sessions', '2026-04-17-test.md'))).toBe(true);
+    expect(existsSync(join(backupRoot, '.ai-context', '.git'))).toBe(false);
+    expect(existsSync(join(backupRoot, '.ai-context', '.git', 'HEAD'))).toBe(false);
+  });
+
+  it('excludes a `.git` file (worktree case) from the backup', async () => {
+    // In a worktree, .git is a file pointing to the real gitdir, not a directory.
+    await mkdir(join(tmpDir, '.ai-context'), { recursive: true });
+    await writeFile(join(tmpDir, '.ai-context', '.git'), 'gitdir: /elsewhere/.git/worktrees/ctx\n');
+    await writeFile(join(tmpDir, '.ai-context', 'project.overview.md'), '# Overview\n');
+
+    const backupRoot = await createBackupDir(tmpDir);
+    await backupPath(tmpDir, '.ai-context', backupRoot);
+
+    expect(existsSync(join(backupRoot, '.ai-context', 'project.overview.md'))).toBe(true);
+    expect(existsSync(join(backupRoot, '.ai-context', '.git'))).toBe(false);
+  });
+
+  it('preserves .gitignore and .gitkeep (only `.git` exactly is filtered)', async () => {
+    await mkdir(join(tmpDir, '.ai-context', 'sessions'), { recursive: true });
+    await writeFile(join(tmpDir, '.ai-context', '.gitignore'), '*.tmp\n');
+    await writeFile(join(tmpDir, '.ai-context', 'sessions', '.gitkeep'), '');
+
+    const backupRoot = await createBackupDir(tmpDir);
+    await backupPath(tmpDir, '.ai-context', backupRoot);
+
+    expect(existsSync(join(backupRoot, '.ai-context', '.gitignore'))).toBe(true);
+    expect(existsSync(join(backupRoot, '.ai-context', 'sessions', '.gitkeep'))).toBe(true);
+    expect(await readFile(join(backupRoot, '.ai-context', '.gitignore'), 'utf8')).toBe('*.tmp\n');
+  });
+
+  it('preserves original mtimes on backed-up files (so `ai-context compact` age detection survives upgrades)', async () => {
+    const { stat, utimes } = await import('fs/promises');
+    await mkdir(join(tmpDir, '.ai-context', 'sessions'), { recursive: true });
+    const sessionFile = join(tmpDir, '.ai-context', 'sessions', '2025-12-01-old.md');
+    await writeFile(sessionFile, '# old session\n');
+    // Age this file to 90 days ago
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    await utimes(sessionFile, ninetyDaysAgo, ninetyDaysAgo);
+
+    const sourceStat = await stat(sessionFile);
+
+    const backupRoot = await createBackupDir(tmpDir);
+    await backupPath(tmpDir, '.ai-context', backupRoot);
+
+    const backedUp = await stat(join(backupRoot, '.ai-context', 'sessions', '2025-12-01-old.md'));
+    // Allow 1-second drift for filesystem precision variance
+    expect(Math.abs(backedUp.mtime.getTime() - sourceStat.mtime.getTime())).toBeLessThan(1000);
+  });
+});
