@@ -1,34 +1,41 @@
-# Codex Adapter (AGENTS.md)
+# AGENTS.md — Shared agent adapter
 
-This file is intentionally thin.  
-The shared source of truth is `.ai-context/`.
+This file is intentionally thin. The single source of truth is `.ai-context/`, loaded on demand.
 
 ## Read First (Every Session)
 
-Always read (essential orientation):
+Always read for orientation:
 1. `.ai-context/project.overview.md`
 2. `.ai-context/project.changelog.md`
-3. Latest file in `.ai-context/sessions/`
+3. Latest file in `.ai-context/sessions/` (**excluding `_archive/`**)
 
 Then read based on task:
-- **Writing/modifying code** → `standards/project.rules.base.md`, `standards/project.rules.md`
-- **Planning or scoping work** → `project.tasks.md`
-- **Understanding codebase layout** → `project.structure.md`
+- **Writing/modifying code** → `.ai-context/standards/project.rules.base.md`, `project.rules.md`
+- **Planning non-trivial work** → `.ai-context/project.tasks.md`, `plans/`
+- **Understanding codebase layout** → `.ai-context/project.structure.md`
 - **Continuing prior work** → additional files in `sessions/`
-- **Language/testing specifics** → relevant files in `standards/`
+- **Language/testing specifics** → files in `.ai-context/standards/`
+
+## Planning
+
+Before non-trivial work (multi-session, architectural change, external dependency), write a plan to `.ai-context/plans/YYYY-MM-DD-<topic>.md` using `_template.md`. Reference the plan from `project.tasks.md` so it's discoverable.
 
 ## Execution Contract
-1. Follow `.ai-context/standards/project.rules.base.md` and `.ai-context/standards/project.rules.md`.
-2. Make incremental, testable changes.
-3. Keep `.ai-context/` updated when project state changes.
+1. Follow `.ai-context/standards/project.rules.base.md` and `project.rules.md`.
+2. One logical change per commit; tests run before commit.
+3. Keep `.ai-context/` in sync with project state — route each change to the correct file:
+   - New architectural decision → `project.decisions.md`
+   - User-visible change → `project.changelog.md`
+   - Task transition (new/done/blocked) → `project.tasks.md`
+   - Plan authored → `plans/YYYY-MM-DD-<topic>.md`
+   - Session close → `sessions/YYYY-MM-DD-<topic>.md`
 
 ## End-Of-Session (Mandatory)
-1. Create a session log at `.ai-context/sessions/YYYY-MM-DD-<topic>.md`
-   using `.ai-context/sessions/_template.md`.
-2. Update `.ai-context/project.tasks.md`.
-3. Update `.ai-context/project.decisions.md` for significant decisions.
-4. Update `.ai-context/project.changelog.md` for user-visible changes.
+Any repo-aware task (review, investigation, coding) is a session unless it's pure chat without repository access.
+
+1. Write `.ai-context/sessions/YYYY-MM-DD-<topic>.md` from `_template.md`. Multiple logs per day are fine — one per topic.
+2. Update `project.tasks.md`, `project.decisions.md`, `project.changelog.md` per the mapping above.
 
 ## Notes
-- If this file conflicts with higher-priority system/developer/user instructions, follow higher-priority instructions.
+- Higher-priority system/developer/user instructions override this file.
 - Do not duplicate shared standards here; update `.ai-context/standards/` instead.

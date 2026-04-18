@@ -31,6 +31,11 @@ export async function restoreProjectOwnedFiles(
     const absPath = join(entry.parentPath ?? (entry as { path?: string }).path ?? backupContextDir, entry.name);
     const relPath = relative(backupContextDir, absPath).replace(/\\/g, '/');
 
+    // Skip any .git entry (a backup from before the skipDotGit filter existed
+    // may still contain one). `.ai-context/` can be its own git repo; never
+    // restore a stale .git/ over the live one.
+    if (relPath === '.git' || relPath.startsWith('.git/') || relPath.includes('/.git/') || relPath.endsWith('/.git')) continue;
+
     // Skip AI Context-owned files — they should stay as freshly installed
     if (isAiContextOwned(relPath)) continue;
 

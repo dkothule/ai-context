@@ -19,7 +19,6 @@ async function runUninstall(targetDir: string, dryRun = false): Promise<{ backup
     '.ai-context-setup',
     '.cursor/rules/main.mdc',
     '.agent/rules/rules.md',
-    '.github/copilot-instructions.md',
     '.claude/hooks',
     'AGENTS.md',
     'CLAUDE.md',

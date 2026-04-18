@@ -2,6 +2,21 @@ import { spawn } from 'child_process';
 import { readFile } from 'fs/promises';
 import { startSpinner } from '../ui/spinner.js';
 
+/**
+ * Substitute `--permission-mode <value>` occurrences in an arg list.
+ * Leaves the list unchanged if no `--permission-mode` flag is present.
+ */
+function withPermissionMode(args: string[], mode: string | undefined): string[] {
+  if (!mode) return args;
+  const out = [...args];
+  for (let i = 0; i < out.length - 1; i++) {
+    if (out[i] === '--permission-mode') {
+      out[i + 1] = mode;
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // CLI Registry — add new agents here
 // ---------------------------------------------------------------------------
@@ -39,9 +54,12 @@ const CLI_REGISTRY: Record<string, CLIConfig> = {
     name: 'claude',
     bin: 'claude',
     pingArgs: ['-p', 'respond ok'],
-    promptArgs: ['-p', '-'],
+    // --permission-mode acceptEdits pre-grants file-edit permissions so
+    // non-interactive runs don't stall on per-Edit permission prompts.
+    // Users can override via `ai-context <cmd> --permission-mode <mode>`.
+    promptArgs: ['-p', '--permission-mode', 'acceptEdits', '-'],
     streaming: {
-      args: ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '-'],
+      args: ['-p', '--permission-mode', 'acceptEdits', '--output-format', 'stream-json', '--verbose', '--include-partial-messages', '-'],
       extractText: (event) => {
         if (event.type === 'stream_event') {
           const inner = event.event as Record<string, unknown> | undefined;
@@ -175,13 +193,24 @@ export async function checkCLIStatus(cli: KnownCLI): Promise<CLIStatus> {
 // Prompt execution
 // ---------------------------------------------------------------------------
 
+export interface RunPromptOptions {
+  /** CLI to use; if unset, auto-detect the first ready one. */
+  preferredCLI?: KnownCLI;
+  /**
+   * Override the CLI's `--permission-mode` arg (claude only).
+   * Falls through to the CLIConfig default if unset.
+   */
+  permissionMode?: string;
+}
+
 /**
- * Attempts to run a prompt through a coding agent CLI.
+ * Attempts to run a prompt (string content) through a coding agent CLI.
  */
-export async function runPromptViaCLI(
-  promptPath: string,
-  preferredCLI?: KnownCLI,
+export async function runPromptContentViaCLI(
+  promptContent: string,
+  options: RunPromptOptions = {},
 ): Promise<RunPromptResult> {
+  const { preferredCLI, permissionMode } = options;
   const clisToTry: KnownCLI[] = preferredCLI
     ? [preferredCLI]
     : await detectAvailableCLIs();
@@ -190,8 +219,6 @@ export async function runPromptViaCLI(
     return { success: false, error: 'No coding agent CLI found on PATH' };
   }
 
-  const promptContent = await readFile(promptPath, 'utf8');
-
   let lastError: string | undefined;
   for (const cli of clisToTry) {
     const config = CLI_REGISTRY[cli];
@@ -199,10 +226,12 @@ export async function runPromptViaCLI(
 
     try {
       if (config.streaming) {
-        const result = await runStreaming(config, promptContent, 300_000);
+        const args = withPermissionMode(config.streaming.args, permissionMode);
+        const result = await runStreamingWithArgs(config, args, promptContent, 300_000);
         return { success: true, cli, stdout: result.stdout, hadPermissionDenials: result.hadPermissionDenials };
       }
-      const stdout = await runProcess(config.bin, config.promptArgs, promptContent, 300_000, true);
+      const args = withPermissionMode(config.promptArgs, permissionMode);
+      const stdout = await runProcess(config.bin, args, promptContent, 300_000, true);
       return { success: true, cli, stdout };
     } catch (err) {
       lastError = (err instanceof Error ? err.message : String(err)).slice(0, 500);
@@ -215,6 +244,18 @@ export async function runPromptViaCLI(
       ? `CLI execution failed: ${lastError}`
       : `CLI(s) found but execution failed`,
   };
+}
+
+/**
+ * Attempts to run a prompt file through a coding agent CLI.
+ */
+export async function runPromptViaCLI(
+  promptPath: string,
+  preferredCLI?: KnownCLI,
+  options: Omit<RunPromptOptions, 'preferredCLI'> = {},
+): Promise<RunPromptResult> {
+  const promptContent = await readFile(promptPath, 'utf8');
+  return runPromptContentViaCLI(promptContent, { preferredCLI, ...options });
 }
 
 // ---------------------------------------------------------------------------
@@ -230,12 +271,12 @@ interface StreamingResult {
   hadPermissionDenials: boolean;
 }
 
-function runStreaming(config: CLIConfig, input: string, timeoutMs: number): Promise<StreamingResult> {
+function runStreamingWithArgs(config: CLIConfig, args: string[], input: string, timeoutMs: number): Promise<StreamingResult> {
   const { streaming } = config;
   if (!streaming) throw new Error(`${config.name} does not support streaming`);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(config.bin, streaming.args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(config.bin, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     let buffer = '';
     let fullResult = '';
     let hadPermissionDenials = false;

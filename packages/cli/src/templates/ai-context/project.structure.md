@@ -1,95 +1,39 @@
 ***
-last_updated: 2026-03-17 00:00:00
+last_updated: [YYYY-MM-DD]
 ***
 
 # Project Structure
 
+Top-level layout of this repository. Update when major directories are added, removed, or renamed.
+
 ## Directory Layout
 ```
 project-root/
-├── .ai-context/           # AI agent shared context (CENTRAL SOURCE OF TRUTH)
-│   ├── manifest.json      # Installer-managed AI Context version metadata
-│   ├── README.md          # Context system overview
-│   ├── project.overview.md    # Project summary and objectives
-│   ├── project.structure.md   # This file - directory layout
-│   ├── project.tasks.md       # Active tasks
-│   ├── project.backlog.md     # Feature backlog
-│   ├── project.decisions.md   # Architecture decision records
-│   ├── project.changelog.md   # Version history
-│   ├── standards/         # Coding standards
-│   │   ├── project.rules.base.md # AI Context-owned shared rules
-│   │   ├── project.rules.md      # Project-owned rule overrides
-│   │   ├── project.workflow.base.md # AI Context-owned workflow baseline
-│   │   ├── project.workflow.md   # Project-owned workflow overrides
-│   │   ├── project.python.md     # Python standards
-│   │   └── project.testing.md    # Testing standards
-│   ├── sessions/          # Session logs (MANDATORY; history not installed by default)
-│   │   └── _template.md   # Session log template (used to create per-session files)
-│   └── plans/             # Design documents for features/improvements
-│       └── _template.md   # Plan template (AI Context-owned)
-│
-├── .agent/                # Google Antigravity configuration
-│   └── rules/
-│       └── rules.md       # Antigravity agent rules
-│
-├── .claude/               # Claude Code hooks & settings
-│   ├── hooks/
-│   │   └── session-log-check.sh  # Stop hook: reminds agent to create session log
-│   └── settings.json      # Hook configuration (merged on install)
-│
-├── .cursor/               # Cursor IDE configuration
-│   └── rules/
-│       └── main.mdc       # Cursor agent rules
-│
-├── .github/               # GitHub Copilot configuration
-│   └── copilot-instructions.md
-│
-├── CLAUDE.md              # Claude Code configuration
-├── AGENTS.md              # Codex agent configuration
-├── .gitignore             # Git ignore rules
-│
-├── src/                   # Source code (to be created)
-├── docs/                  # Documentation (to be created)
-├── config/                # Configuration files (to be created)
-├── packages/
-│   └── cli/               # npm CLI package (ai-context v1.0.0)
-│       ├── package.json
-│       ├── src/           # TypeScript source (commands, core, templates, setup-prompts)
-│       └── tests/         # Unit and integration tests
-├── scripts/
-│   └── sync-templates.sh        # Syncs repo root templates → packages/cli/src/templates/
-└── README.md              # Project README
+├── .ai-context/          # AI agent shared context (single source of truth)
+│   ├── project.overview.md
+│   ├── project.tasks.md
+│   ├── project.decisions.md
+│   ├── project.changelog.md
+│   ├── project.backlog.md
+│   ├── project.structure.md
+│   ├── plans/            # Design plans for non-trivial work
+│   ├── sessions/         # Session logs (usually gitignored for adopters)
+│   └── standards/        # Coding/workflow standards
+├── AGENTS.md             # Shared agent adapter (canonical)
+├── CLAUDE.md             # Claude Code adapter (@AGENTS.md + notes)
+├── .cursor/              # Cursor adapter
+└── [To be filled — describe your actual source tree]
 ```
 
-## Multi-Agent Configuration
+## Key Entry Points
+- [To be filled — main executable, library entry, or primary service]
 
-### Supported AI Agents
-This project is configured for seamless use with multiple AI coding assistants:
+## Important Config/Manifests
+- [To be filled — e.g., `package.json`, `pyproject.toml`, `Cargo.toml`]
 
-- **Cursor** → `.cursor/rules/main.mdc`
-- **Claude Code** → `CLAUDE.md` (root) + `.claude/hooks/session-log-check.sh` (Stop hook)
-- **Codex** → `AGENTS.md` (root)
-- **GitHub Copilot** → `.github/copilot-instructions.md`
-- **Google Antigravity** → `.agent/rules/rules.md`
+## Infrastructure / Deployment
+- [To be filled — CI workflows, Dockerfile, deploy configs]
 
-All agents share context through the `.ai-context/` directory.
+***
 
-## Key Locations
-- **AI Context**: `.ai-context/` - All AI agent coordination files (READ FIRST)
-- **AI Context Metadata**: `.ai-context/manifest.json` - installed AI Context version and schema
-- **Session Logs**: `.ai-context/sessions/` - Work session history (MANDATORY)
-- **Plans**: `.ai-context/plans/` - Design documents for features/improvements
-- **Standards**: `.ai-context/standards/` - Coding and workflow standards
-- **Source Code**: `src/` - Main application code
-- **Tests**: `tests/` - Unit and integration tests
-- **Documentation**: `docs/` - Project documentation
-- **Configuration**: `config/` - Environment and app configurations
-- **Scripts**: `scripts/` - Install, uninstall, and post-apply utility scripts
-
-## Important Files
-- Entry point: [To be determined]
-- Configuration: [To be determined]
-- Dependencies: [To be determined]
-
-## Notes
-This file should be updated whenever the project structure changes significantly.
+**For Agents**: Keep this in sync with actual layout. `ai-context check-drift` flags references to files that no longer exist.

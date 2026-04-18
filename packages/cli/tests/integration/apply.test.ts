@@ -1,13 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdir, writeFile, rm, readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
+import { fileURLToPath } from 'url';
 import { runInstall } from '../../src/core/install.js';
 import { ALL_AGENTS } from '../../src/core/copyTemplates.js';
 import { readManifest, writeManifest } from '../../src/core/manifest.js';
 import type { Manifest } from '../../src/core/manifest.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const TEMPLATE_MANIFEST = join(__dirname, '..', '..', 'src', 'templates', 'ai-context', 'manifest.json');
+async function currentTemplateVersion(): Promise<string> {
+  return JSON.parse(await readFile(TEMPLATE_MANIFEST, 'utf8')).version;
+}
 
 let tmpDir: string;
 
@@ -28,7 +35,7 @@ describe('runInstall — fresh install', () => {
 
     const manifest = await readManifest(join(tmpDir, '.ai-context'));
     expect(manifest).not.toBeNull();
-    expect(manifest!.version).toBe('1.0.0');
+    expect(manifest!.version).toBe(await currentTemplateVersion());
     expect(manifest!.apply_mode).toBe('fresh-install');
     expect(manifest!.managed_by).toContain('npm:ai-context');
   });
@@ -103,7 +110,7 @@ describe('runInstall — upgrade', () => {
     const manifest = await readManifest(join(tmpDir, '.ai-context'));
     expect(manifest!.apply_mode).toBe('upgrade');
     expect(manifest!.previous_version).toBe('0.5.0');
-    expect(manifest!.version).toBe('1.0.0');
+    expect(manifest!.version).toBe(await currentTemplateVersion());
   });
 });
 

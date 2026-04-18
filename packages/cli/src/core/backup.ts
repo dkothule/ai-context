@@ -1,6 +1,16 @@
 import { cp, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { existsSync } from 'fs';
+
+/**
+ * Filter for fs.cp that skips any `.git` entry (directory or file).
+ * `.ai-context/` can be its own git repo in some projects; we must never
+ * copy its `.git/` into the backup tree or the sub-repo's history could be
+ * corrupted on restore.
+ */
+export function skipDotGit(src: string): boolean {
+  return basename(src) !== '.git';
+}
 
 /**
  * Generates a timestamp-based backup directory name.
@@ -51,6 +61,6 @@ export async function backupPath(
   if (!existsSync(src)) return false;
 
   await mkdir(join(dst, '..'), { recursive: true });
-  await cp(src, dst, { recursive: true });
+  await cp(src, dst, { recursive: true, filter: skipDotGit });
   return true;
 }

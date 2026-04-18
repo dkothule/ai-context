@@ -4,8 +4,8 @@ This file is AI Context-owned and updated by AI Context upgrades.
 Project-specific policy belongs in `project.rules.md`.
 
 ## 1) Source Of Truth
-- `.ai-context/` is the shared source of truth across Codex, Claude Code, Cursor, Copilot, and workspace agents.
-- Agent-specific files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/*.mdc`, `.agent/rules/*.md`, `.github/copilot-instructions.md`) must stay thin and must not duplicate shared governance text.
+- `.ai-context/` is the shared source of truth across Codex, Claude Code, Cursor, and workspace agents.
+- Agent-specific files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/*.mdc`, `.agent/rules/*.md`) must stay thin and must not duplicate shared governance text.
 
 ## 2) Instruction Priority
 Apply instructions in this order:
@@ -49,6 +49,15 @@ Before coding, read:
 4. Update context files when project state changes.
 5. Summarize outcomes, verification, and remaining risks.
 
+### Plans — When Required
+Write a plan to `.ai-context/plans/YYYY-MM-DD-<topic>.md` (use `_template.md`) before starting work that is any of:
+- Multi-session (expected to span more than one working session)
+- Architectural change (new module, new data model, schema change, dependency upgrade with blast radius)
+- External dependency integration (new third-party API, new CLI, new infrastructure component)
+- Security-sensitive change (auth, permissions, secrets handling)
+
+Reference the plan from `project.tasks.md` so it's discoverable. Small fixes, typos, and one-file changes don't need a plan.
+
 ## 7) Response Contract By Task Type
 ### Implementation/Change Tasks
 - Lead with result.
@@ -68,10 +77,12 @@ Before coding, read:
 - List next actions with owners or clear handoff notes.
 
 ## 8) Context Update Rules
-Update these files when applicable:
-- `.ai-context/project.tasks.md`: status, in-progress work, blockers, next actions
-- `.ai-context/project.decisions.md`: significant technical or architectural decisions
-- `.ai-context/project.changelog.md`: user-visible changes
+Route each state change to the correct `.ai-context/` file:
+- New architectural decision → `project.decisions.md`
+- User-visible change → `project.changelog.md`
+- Task transition (new/in-progress/done/blocked) → `project.tasks.md`
+- Plan authored → `plans/YYYY-MM-DD-<topic>.md`
+- Session close → `sessions/YYYY-MM-DD-<topic>.md`
 
 ## 9) Session Logging (Mandatory)
 Every meaningful work session must create or update a session note.

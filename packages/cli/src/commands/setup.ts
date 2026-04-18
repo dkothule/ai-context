@@ -1,23 +1,26 @@
 import { Command } from 'commander';
 import { resolve, join } from 'path';
 import { existsSync } from 'fs';
-import { readFile } from 'fs/promises';
 import { readManifest } from '../core/manifest.js';
 import { getRegisteredCLIs } from '../core/agentCLI.js';
-import { interactiveSetup, runWithCLI, promptFileForMode } from '../core/setupFlow.js';
+import { interactiveSetup, runSetup, promptFileForMode } from '../core/setupFlow.js';
 import { log } from '../ui/logger.js';
 import pc from 'picocolors';
 
+const VALID_PERMISSION_MODES = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypassPermissions'];
+
 export function setupCommand(): Command {
   return new Command('setup')
-    .description('Run (or print) the AI Context setup prompt for your coding agent')
+    .description('Run the AI Context setup prompt via your coding agent (or copy/print it)')
     .argument('[path]', 'Target project directory', process.cwd())
-    .option('--print', 'Print the prompt to stdout without executing it')
+    .option('--print', 'Print the prompt to stdout (bypass execution and clipboard)')
+    .option('--copy', 'Copy the prompt to the clipboard (skip CLI execution)')
     .option('--cli <name>', 'Force a specific CLI (e.g. claude, codex)')
+    .option('--permission-mode <mode>', `Override claude --permission-mode (${VALID_PERMISSION_MODES.join('|')})`)
     .action(
       async (
         pathArg: string,
-        opts: { print?: boolean; cli?: string },
+        opts: { print?: boolean; copy?: boolean; cli?: string; permissionMode?: string },
       ) => {
         const targetDir = resolve(pathArg);
         const contextDir = join(targetDir, '.ai-context');
@@ -25,6 +28,11 @@ export function setupCommand(): Command {
         if (!existsSync(contextDir)) {
           log.error('AI Context is not installed in this directory.');
           log.info(`Run: ${pc.bold('ai-context init')} first.`);
+          process.exit(1);
+        }
+
+        if (opts.permissionMode && !VALID_PERMISSION_MODES.includes(opts.permissionMode)) {
+          log.error(`Invalid --permission-mode: ${opts.permissionMode}. Valid: ${VALID_PERMISSION_MODES.join(', ')}`);
           process.exit(1);
         }
 
@@ -37,28 +45,25 @@ export function setupCommand(): Command {
           process.exit(1);
         }
 
-        // --print: just print the prompt
-        if (opts.print) {
-          const promptContent = await readFile(promptFile, 'utf8');
-          console.log(promptContent);
-          return;
-        }
+        const mode = opts.print ? 'print' : opts.copy ? 'copy' : 'auto';
 
-        log.heading('AI Context — setup');
-
-        // --cli flag: skip prompts, run directly
-        if (opts.cli) {
-          const registeredCLIs = getRegisteredCLIs();
-          if (!registeredCLIs.includes(opts.cli)) {
-            log.error(`Unknown CLI: ${opts.cli}. Valid options: ${registeredCLIs.join(', ')}`);
-            process.exit(1);
+        // --cli flag or --print/--copy: skip agent selector, go straight to runSetup
+        if (opts.cli || mode !== 'auto') {
+          if (opts.cli) {
+            const registeredCLIs = getRegisteredCLIs();
+            if (!registeredCLIs.includes(opts.cli)) {
+              log.error(`Unknown CLI: ${opts.cli}. Valid options: ${registeredCLIs.join(', ')}`);
+              process.exit(1);
+            }
           }
-          await runWithCLI(targetDir, applyMode, opts.cli);
+          if (mode !== 'print') log.heading('AI Context — setup');
+          await runSetup(targetDir, applyMode, { cli: opts.cli, mode, permissionMode: opts.permissionMode });
           return;
         }
 
-        // Interactive: same flow as init's post-install setup
-        await interactiveSetup(targetDir, applyMode);
+        // Interactive: prompt user to pick a CLI, then runSetup via executeOrCopy.
+        log.heading('AI Context — setup');
+        await interactiveSetup(targetDir, applyMode, { permissionMode: opts.permissionMode });
       },
     );
 }

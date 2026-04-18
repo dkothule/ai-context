@@ -1,27 +1,25 @@
 ***
-last_updated: 2025-11-20 14:30:00
+last_updated: [YYYY-MM-DD]
 ***
 
 # Project Backlog
 
-High-level items to work on. This is not a replacement for issue tracking systems like Jira, but a local working backlog.
+Ideas, improvements, and deferred work. Not a replacement for a formal issue tracker — this is a lightweight working backlog for context-aware prioritization.
+
+Groom periodically: move items to `project.tasks.md` when starting; delete items that no longer matter.
 
 ## High Priority
-- [ ] Complete initial project setup
-- [ ] Define core features and requirements
+- [ ] [To be filled]
 
 ## Medium Priority
-- [ ] Set up CI/CD pipeline
-- [ ] Establish testing framework
+- [ ] [To be filled]
 
 ## Low Priority
-- [ ] Performance optimization planning
+- [ ] [To be filled]
 
-## Ideas / Future Considerations
-- [ ] **Windows hooks support** — `.claude/hooks/session-log-check.sh` is bash-only; consider a cross-platform alternative (Node.js script or PowerShell equivalent)
-
-## Completed
-- [x] Set up AI context system (2025-11-20)
+## Ideas / Exploration
+(Unstructured notes and "what if" items)
 
 ***
-**Note**: Move items to `project.tasks.md` when actively working on them.
+
+**For Agents**: When you surface an idea during a session that shouldn't derail current work, park it here rather than losing it. Include enough context so a future reader understands the "why".

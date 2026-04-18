@@ -111,7 +111,15 @@ Please do only this:
 8. Ensure local override files exist but stay lightweight:
    - .ai-context/standards/project.rules.md
    - .ai-context/standards/project.workflow.md
-9. Leave unknown placeholders/TBD text only where the repository does not provide enough evidence to fill them safely.
+9. Language/testing standards — OPTIONAL, create ONLY if relevant to this repo:
+   - Detect primary language(s), framework(s), and test stack from the repo evidence.
+   - For EACH detected language that warrants team conventions, create `.ai-context/standards/project.<lang>.md` (e.g., `project.typescript.md`, `project.python.md`, `project.go.md`). Keep each file thin (~50–150 lines), covering ONLY the rules that aren't already in the base rules — don't duplicate `project.rules.base.md`.
+   - If the repo has a non-trivial test stack, create `.ai-context/standards/project.testing.md` with test strategy, coverage expectations, and naming conventions observed in the repo.
+   - Reference each created file from `.ai-context/standards/project.rules.md` so agents know to read them.
+   - DO NOT create these files if the repo doesn't have substantive evidence for them (e.g., single-script projects, docs-only repos). Skipping is fine.
+   - DO NOT copy rules from external sources you can't verify against this specific codebase.
+10. Write a first plan to `.ai-context/plans/YYYY-MM-DD-ai-context-bootstrap.md` summarizing the bootstrap work (use `.ai-context/plans/_template.md`). This exercises the plans convention and gives future sessions a reference.
+11. Leave unknown placeholders/TBD text only where the repository does not provide enough evidence to fill them safely.
 
 Done when:
 - project.overview.md and project.structure.md reflect the actual repository,
