@@ -1,17 +1,20 @@
 {
   "name": "@dkothule/ai-context",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "publishConfig": {
     "access": "public"
   },
   "description": "Shared memory for coding agents — Cursor, Claude Code, Codex, and Antigravity",
   "license": "MIT",
   "author": "dkothule",
-  "homepage": "https://github.com/dkothule/ai-agent-context-template",
+  "homepage": "https://github.com/dkothule/ai-context#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dkothule/ai-agent-context-template.git",
+    "url": "git+https://github.com/dkothule/ai-context.git",
     "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/dkothule/ai-context/issues"
   },
   "keywords": [
     "ai",
@@ -42,6 +45,7 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
+    "prepack": "node scripts/copy-readme.js",
     "prepublishOnly": "npm run typecheck && npm run build && npm test && node scripts/assert-version-sync.js"
   },
   "dependencies": {
