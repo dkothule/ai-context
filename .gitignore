@@ -32,8 +32,14 @@ Thumbs.db
 .env
 .env.local
 
-# Session notes (optional - remove if you want to track them)
-.ai-context/sessions/
+local/
+
+# Claude Code — local-only override (per Claude Code convention)
+.claude/settings.local.json
 
 # Logs
 *.log
+
+# Node
+node_modules/
+packages/*/node_modules/
