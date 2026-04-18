@@ -1,7 +1,7 @@
 import { mkdir, rm } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { readManifest, writeManifest, readSourceManifest } from './manifest.js';
 import { detectApplyMode } from './applyMode.js';
 import { createBackupDir, backupPath } from './backup.js';
@@ -16,6 +16,22 @@ import type { Manifest, ApplyMode } from './manifest.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const TEMPLATES_DIR = join(__dirname, '..', '..', 'src', 'templates');
+
+/**
+ * Read the CLI package's own name from package.json at runtime.
+ * Single source of truth — when the package is renamed or scoped, no code
+ * elsewhere needs to change. Used when writing `managed_by` into adopters'
+ * manifest.json so the recorded installer name always matches reality.
+ */
+function getOwnPackageName(): string {
+  try {
+    const pkgPath = join(__dirname, '..', '..', 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string };
+    return pkg.name ?? 'ai-context';
+  } catch {
+    return 'ai-context';
+  }
+}
 
 /** Paths managed by the installer (relative to target project root). */
 const MANAGED_PATHS = [
@@ -163,7 +179,7 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     name: 'ai-context',
     version: sourceManifest.version,
     schema_version: sourceManifest.schema_version,
-    managed_by: `npm:ai-context@${sourceManifest.version}`,
+    managed_by: `npm:${getOwnPackageName()}@${sourceManifest.version}`,
     installed_at: dryRun ? null : now,
     apply_mode: applyMode,
     agents_installed: agents ?? null,

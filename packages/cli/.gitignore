@@ -1,3 +1,9 @@
 node_modules/
 dist/
 coverage/
+
+# Generated at pack time by scripts/copy-readme.js — see prepack hook.
+# The canonical README lives at repo root; we copy it in for npm publish
+# because scoped-symlink-to-parent was rejected by npm's pack step.
+README.md
+*.tgz

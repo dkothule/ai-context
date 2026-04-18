@@ -34,7 +34,7 @@ describe('status (via readManifest)', () => {
     expect(manifest!.version).toBe(await currentTemplateVersion());
     expect(manifest!.apply_mode).toBe('fresh-install');
     expect(manifest!.agents_installed).toEqual(['claude', 'cursor']);
-    expect(manifest!.managed_by).toContain('npm:ai-context');
+    expect(manifest!.managed_by).toMatch(/^npm:.*ai-context@[\d.]+$/);
   });
 
   it('returns null for directory without AI Context', async () => {
