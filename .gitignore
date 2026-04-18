@@ -34,6 +34,9 @@ Thumbs.db
 
 local/
 
+# Claude Code — local-only override (per Claude Code convention)
+.claude/settings.local.json
+
 # Logs
 *.log
 
