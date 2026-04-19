@@ -1,6 +1,8 @@
-# ai-context
+# AI Context: Shared Memory for Coding Agents
 
-**Shared memory for coding agents.** One `.ai-context/` directory. Every agent — Claude, Cursor, Codex, Antigravity — reads it. Sessions stop losing context.
+> Persistent context across sessions, tools, and teams  
+> One `.ai-context/` directory. Every agent — Claude Code, Cursor, Codex, Antigravity — reads it. Sessions stop losing context.
+> One `ai-context` command to manage, fix drift and compact sessions. 
 
 [![npm](https://img.shields.io/npm/v/@dkothule/ai-context.svg)](https://www.npmjs.com/package/@dkothule/ai-context) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
@@ -412,6 +414,8 @@ Short version:
 
 Ideas on the near-term roadmap. Directions, not commitments — open an issue if one would unblock you.
 
+- **Skills** - install and manage skills
+- **Cursor Hooks** - support for cursor `preCompact` hooks
 - **Windows-native hooks** — drop the Git Bash / WSL dependency with PowerShell or Node equivalents for the three Claude hooks.
 - **Self-contained GitHub Copilot adapter** — a generator command that builds a flat `.github/copilot-instructions.md` by synthesizing `.ai-context/` content, since Copilot can't resolve relative links the way CLAUDE.md / AGENTS.md can.
 - **First-class Codex support** — non-interactive permission flags for the `codex` CLI so `setup` / `check-drift` / `compact` run cleanly end-to-end instead of falling back to clipboard.
