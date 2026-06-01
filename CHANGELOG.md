@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/) loosely and u
 
 ***
 
+## [1.2.1] - 2026-05-31
+
+> **Headline:** Documentation release — new README positioning ("context infrastructure for AI coding agents"), a terminal demo, and a clearer install story. No code changes; the CLI is identical to 1.2.0.
+
+### Changed
+
+- **README refresh** — repositioned around "context infrastructure for AI coding agents," led with the capability overview, merged the "why not just a hand-written `CLAUDE.md`" objection into the pattern section, removed a duplicate install block, and embedded a terminal demo. Cites [OpenAI's harness-engineering post](https://openai.com/index/harness-engineering/) (Feb 2026) as encouraging external validation of the thin-adapter / repo-as-system-of-record pattern this project has shipped since December 2025.
+- **Install guidance** — recommends `npm install -g @dkothule/ai-context` for recurring use (commands run as `ai-context <cmd>`); `npx` is now documented as a no-install quick try only.
+- **Doc accuracy** — setup/drift docs reference the configured CLI (`claude -p`, `codex exec`, or `agent --print`) instead of implying Claude-only execution.
+
 ## [1.2.0] - 2026-05-31
 
 > **Headline:** Cursor and Codex reach near-CLI parity with Claude. `ai-context setup` / `compact` / `check-drift` now run non-interactively through the Cursor `agent` CLI in addition to `claude` and `codex`. Cursor and Codex also get session-management hook parity with Claude Code (autosave on compaction, log-reminder, and post-compact reminder for all three). Plus GitHub Releases on publish and a tracked `CHANGELOG.md`.
