@@ -1,6 +1,6 @@
 {
   "name": "@dkothule/ai-context",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publishConfig": {
     "access": "public"
   },
@@ -23,8 +23,17 @@
     "context",
     "cursor",
     "claude",
+    "claude-code",
     "codex",
-    "multi-agent"
+    "multi-agent",
+    "harness",
+    "agent-harness",
+    "ai-harness",
+    "harness-engineering",
+    "context-engineering",
+    "context-management",
+    "agents.md",
+    "claude.md"
   ],
   "type": "module",
   "main": "dist/index.js",
