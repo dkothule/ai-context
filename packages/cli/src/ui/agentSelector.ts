@@ -27,12 +27,6 @@ const AGENT_CHOICES: AgentChoice[] = [
     detail: 'AGENTS.md',
     defaultChecked: true,
   },
-  {
-    id: 'antigravity',
-    label: 'Antigravity',
-    detail: '.agent/rules/rules.md',
-    defaultChecked: false,
-  },
 ];
 
 /**

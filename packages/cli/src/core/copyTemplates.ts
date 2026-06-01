@@ -1,9 +1,9 @@
 import { cp, mkdir, readdir } from 'fs/promises';
 import { join } from 'path';
 
-export type AgentId = 'claude' | 'cursor' | 'codex' | 'antigravity';
+export type AgentId = 'claude' | 'cursor' | 'codex';
 
-export const ALL_AGENTS: AgentId[] = ['claude', 'cursor', 'codex', 'antigravity'];
+export const ALL_AGENTS: AgentId[] = ['claude', 'cursor', 'codex'];
 
 /**
  * Maps an agent ID to the files/dirs it requires from the template.
@@ -12,9 +12,13 @@ const AGENT_FILES: Record<AgentId, string[]> = {
   // Note: claude/ hooks are installed separately by installClaudeHooks().
   // Here we only copy the adapter file. settings.json is user-owned and must not be overwritten.
   claude: ['CLAUDE.md'],
+  // cursor/ copies adapter rules + hook scripts from the template. hooks.json is
+  // managed separately by installCursorHooks() and is intentionally NOT in the
+  // template tree so user customisations are never overwritten on upgrade.
   cursor: ['cursor/'],
-  codex: ['AGENTS.md'],
-  antigravity: ['agent/'],
+  // codex/ copies AGENTS.md + the codex/ directory containing hook scripts.
+  // hooks.json is managed by installCodexHooks() (same pattern as cursor).
+  codex: ['AGENTS.md', 'codex/'],
 };
 
 export interface CopyOptions {
@@ -38,7 +42,7 @@ const TEMPLATE_TO_TARGET: Record<string, string> = {
   'ai-context/': '.ai-context/',
   'claude/': '.claude/',
   'cursor/': '.cursor/',
-  'agent/': '.agent/',
+  'codex/': '.codex/',
   'AGENTS.md': 'AGENTS.md',
   'CLAUDE.md': 'CLAUDE.md',
 };

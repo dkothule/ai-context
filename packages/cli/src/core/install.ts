@@ -7,6 +7,10 @@ import { detectApplyMode } from './applyMode.js';
 import { createBackupDir, backupPath } from './backup.js';
 import { copyTemplates } from './copyTemplates.js';
 import { installClaudeHooks } from './claudeHooks.js';
+import { installCursorHooks } from './cursorHooks.js';
+import type { CursorHooksInstallResult } from './cursorHooks.js';
+import { installCodexHooks } from './codexHooks.js';
+import type { CodexHooksInstallResult } from './codexHooks.js';
 import { renameLegacyStandards } from './legacyStandards.js';
 import { restoreProjectOwnedFiles } from './restore.js';
 import { appendGitignoreEntries } from './gitignore.js';
@@ -37,7 +41,7 @@ function getOwnPackageName(): string {
 const MANAGED_PATHS = [
   '.ai-context',
   '.cursor',
-  '.agent',
+  '.codex',
   '.claude/hooks',
 ];
 
@@ -64,6 +68,12 @@ export interface InstallResult {
   hooksMerged: boolean;
   hooksMergeSkipReason?: string;
   hooksEventsMerged: string[];
+  cursorHooksMerged?: boolean;
+  cursorHooksMergeSkipReason?: string;
+  cursorHooksEventsMerged?: string[];
+  codexHooksMerged?: boolean;
+  codexHooksMergeSkipReason?: string;
+  codexHooksEventsMerged?: string[];
   gitignoreAdded: boolean;
   /** Path to the install log written under .ai-context/logs/install/ (null in dry-run). */
   logPath: string | null;
@@ -148,14 +158,57 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     onCopy: (rel) => onStep(`Copied ${rel}`),
   });
 
-  // 5. Install Claude hooks
-  const templateClaudeDir = join(TEMPLATES_DIR, 'claude');
-  const hooksResult = await installClaudeHooks(templateClaudeDir, targetDir, dryRun);
-  if (hooksResult.settingsMerged) {
-    const events = hooksResult.eventsMerged.join(', ');
-    onStep(`Merged Claude hook(s) into .claude/settings.json: ${events}`);
-  } else if (hooksResult.settingsSkipReason) {
-    onSkip(`hooks merge skipped: ${hooksResult.settingsSkipReason}`);
+  // Determine which agents are getting installed. An undefined `agents` means
+  // "use the installer default" — which today is ALL_AGENTS (set in apply/init).
+  // Tests and explicit callers pass a subset, in which case agent-specific
+  // hook installation is gated below.
+  const agentList = agents ?? [];
+  const installAll = agentList.length === 0;
+
+  // 5. Install Claude hooks (only when claude agent selected)
+  let hooksResult: { settingsMerged: boolean; settingsSkipReason?: string; eventsMerged: string[] } = {
+    settingsMerged: false,
+    eventsMerged: [],
+  };
+  if (installAll || agentList.includes('claude')) {
+    const templateClaudeDir = join(TEMPLATES_DIR, 'claude');
+    hooksResult = await installClaudeHooks(templateClaudeDir, targetDir, dryRun);
+    if (hooksResult.settingsMerged) {
+      const events = hooksResult.eventsMerged.join(', ');
+      onStep(`Merged Claude hook(s) into .claude/settings.json: ${events}`);
+    } else if (hooksResult.settingsSkipReason) {
+      onSkip(`hooks merge skipped: ${hooksResult.settingsSkipReason}`);
+    }
+  }
+
+  // 5b. Install Cursor hooks (only when cursor agent selected — scripts come from copyTemplates)
+  let cursorHooksResult: CursorHooksInstallResult | null = null;
+  if (installAll || agentList.includes('cursor')) {
+    const templateCursorDir = join(TEMPLATES_DIR, 'cursor');
+    cursorHooksResult = await installCursorHooks(templateCursorDir, targetDir, dryRun);
+    if (cursorHooksResult.configMerged) {
+      const events = cursorHooksResult.eventsMerged.join(', ');
+      onStep(`Merged Cursor hook(s) into .cursor/hooks.json: ${events}`);
+    } else if (cursorHooksResult.configSkipReason) {
+      onSkip(`cursor hooks merge skipped: ${cursorHooksResult.configSkipReason}`);
+    }
+  }
+
+  // 5c. Install Codex hooks (only when codex agent selected — scripts come from copyTemplates)
+  let codexHooksResult: CodexHooksInstallResult | null = null;
+  if (installAll || agentList.includes('codex')) {
+    const templateCodexDir = join(TEMPLATES_DIR, 'codex');
+    codexHooksResult = await installCodexHooks(templateCodexDir, targetDir, dryRun);
+    if (codexHooksResult.configMerged) {
+      const events = codexHooksResult.eventsMerged.join(', ');
+      onStep(`Merged Codex hook(s) into .codex/hooks.json: ${events}`);
+    }
+    if (codexHooksResult.featureFlagEnsured) {
+      onStep('Enabled hooks feature flag in .codex/config.toml');
+    }
+    if (!codexHooksResult.configMerged && codexHooksResult.configSkipReason) {
+      onSkip(`codex hooks merge skipped: ${codexHooksResult.configSkipReason}`);
+    }
   }
 
   // 6. Rename legacy standards
@@ -183,6 +236,9 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     installed_at: dryRun ? null : now,
     apply_mode: applyMode,
     agents_installed: agents ?? null,
+    // Preserve the user's chosen CLI across upgrades/reapply. It's set later by
+    // `runSetup` (after the user picks a CLI), so a fresh install leaves it null.
+    configured_cli: existingManifest?.configured_cli ?? null,
     previous_version: existingManifest?.version ?? null,
     previous_schema_version: existingManifest?.schema_version ?? null,
   };
@@ -245,6 +301,12 @@ export async function runInstall(options: InstallOptions): Promise<InstallResult
     hooksMerged: hooksResult.settingsMerged,
     hooksMergeSkipReason: hooksResult.settingsSkipReason,
     hooksEventsMerged: hooksResult.eventsMerged,
+    cursorHooksMerged: cursorHooksResult?.configMerged,
+    cursorHooksMergeSkipReason: cursorHooksResult?.configSkipReason,
+    cursorHooksEventsMerged: cursorHooksResult?.eventsMerged,
+    codexHooksMerged: codexHooksResult?.configMerged,
+    codexHooksMergeSkipReason: codexHooksResult?.configSkipReason,
+    codexHooksEventsMerged: codexHooksResult?.eventsMerged,
     gitignoreAdded,
     logPath,
   };

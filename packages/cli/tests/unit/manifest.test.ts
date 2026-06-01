@@ -3,7 +3,7 @@ import { mkdir, writeFile, rm } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
-import { readManifest, writeManifest, detectManifestPath } from '../../src/core/manifest.js';
+import { readManifest, writeManifest, detectManifestPath, setConfiguredCli, resolveConfiguredCli } from '../../src/core/manifest.js';
 import type { Manifest } from '../../src/core/manifest.js';
 
 let tmpDir: string;
@@ -25,6 +25,7 @@ const sampleManifest: Manifest = {
   installed_at: '2026-03-17T00:00:00.000Z',
   apply_mode: 'fresh-install',
   agents_installed: ['claude', 'cursor'],
+  configured_cli: null,
   previous_version: null,
   previous_schema_version: null,
 };
@@ -57,8 +58,48 @@ describe('readManifest', () => {
     await writeFile(join(tmpDir, 'manifest.json'), JSON.stringify(old, null, 2));
     const result = await readManifest(tmpDir);
     expect(result!.agents_installed).toBeNull();
+    expect(result!.configured_cli).toBeNull();
     expect(result!.previous_version).toBeNull();
     expect(result!.installed_at).toBeNull();
+  });
+});
+
+describe('setConfiguredCli', () => {
+  it('writes configured_cli, preserving other fields', async () => {
+    await writeManifest(tmpDir, sampleManifest);
+    const ok = await setConfiguredCli(tmpDir, 'codex');
+    expect(ok).toBe(true);
+    const result = await readManifest(tmpDir);
+    expect(result!.configured_cli).toBe('codex');
+    expect(result!.agents_installed).toEqual(['claude', 'cursor']);
+    expect(result!.version).toBe('1.0.0');
+  });
+
+  it('returns false when no manifest exists', async () => {
+    expect(await setConfiguredCli(tmpDir, 'codex')).toBe(false);
+  });
+});
+
+describe('resolveConfiguredCli', () => {
+  const registered = ['claude', 'codex', 'cursor'];
+
+  it('returns the configured CLI when registered', async () => {
+    await writeManifest(tmpDir, { ...sampleManifest, configured_cli: 'codex' });
+    expect(await resolveConfiguredCli(tmpDir, registered)).toBe('codex');
+  });
+
+  it('returns undefined when unset', async () => {
+    await writeManifest(tmpDir, sampleManifest);
+    expect(await resolveConfiguredCli(tmpDir, registered)).toBeUndefined();
+  });
+
+  it('returns undefined when the stored value is no longer registered', async () => {
+    await writeManifest(tmpDir, { ...sampleManifest, configured_cli: 'gemini' });
+    expect(await resolveConfiguredCli(tmpDir, registered)).toBeUndefined();
+  });
+
+  it('returns undefined when no manifest exists', async () => {
+    expect(await resolveConfiguredCli(tmpDir, registered)).toBeUndefined();
   });
 });
 

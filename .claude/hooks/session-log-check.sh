@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+# Resolve the repo root defensively (Claude Code documents CWD=project root,
+# but this keeps the script working if invoked manually from a subdirectory).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
 SESSIONS_DIR=".ai-context/sessions"
 TODAY="$(date +%Y-%m-%d)"
 

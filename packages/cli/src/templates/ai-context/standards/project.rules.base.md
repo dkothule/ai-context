@@ -4,8 +4,8 @@ This file is AI Context-owned and updated by AI Context upgrades.
 Project-specific policy belongs in `project.rules.md`.
 
 ## 1) Source Of Truth
-- `.ai-context/` is the shared source of truth across Codex, Claude Code, Cursor, and workspace agents.
-- Agent-specific files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/*.mdc`, `.agent/rules/*.md`) must stay thin and must not duplicate shared governance text.
+- `.ai-context/` is the shared source of truth across Codex, Claude Code, and Cursor.
+- Agent-specific files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/*.mdc`) must stay thin and must not duplicate shared governance text.
 
 ## 2) Instruction Priority
 Apply instructions in this order:

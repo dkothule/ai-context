@@ -4,6 +4,8 @@ import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { spawn } from 'child_process';
 import { getRegisteredCLIs } from '../core/agentCLI.js';
+import { resolveConfiguredCli } from '../core/manifest.js';
+import { driftAnalysisPrompt, driftApplyPrompt, driftClipboardFollowup } from '../prompts/index.js';
 import { executeOrCopy } from '../core/clipboardFallback.js';
 import { writeCommandLog, isoStamp } from '../core/logWriter.js';
 import { log } from '../ui/logger.js';
@@ -37,7 +39,7 @@ export function checkDriftCommand(): Command {
     .option('--print', 'Print the LLM prompt to stdout (bypass execution/clipboard/file)')
     .option('--copy', 'Write the drift report file AND copy a follow-up prompt to clipboard')
     .option('--fix [severity]', `Write the report AND apply patches at or above this severity (${VALID_FIX_LEVELS.join('|')}; default: significant)`)
-    .option('--cli <name>', 'Force a specific CLI (e.g. claude, codex)')
+    .option('--cli <name>', 'Force a specific CLI (e.g. claude, codex, cursor)')
     .option('--permission-mode <mode>', `Override claude --permission-mode (${VALID_PERMISSION_MODES.join('|')})`)
     .action(async (pathArg: string, opts: CheckDriftOptions) => {
       const targetDir = resolve(pathArg);
@@ -100,13 +102,18 @@ export function checkDriftCommand(): Command {
         return;
       }
 
+      // Default to the CLI the project was configured with (manifest), unless
+      // --cli overrides it. Null/stale → undefined → executeOrCopy auto-detects.
+      const resolvedCli = opts.cli ?? (await resolveConfiguredCli(contextDir, getRegisteredCLIs()));
+
       const mode = opts.copy ? 'copy' : 'auto';
-      log.info(`Generating drift report${mode === 'copy' ? ' (clipboard)' : ` via ${pc.bold(opts.cli ?? 'claude')}`}...`);
+      log.info(`Generating drift report${mode === 'copy' ? ' (clipboard)' : ` via ${pc.bold(resolvedCli ?? 'auto-detect')}`}...`);
 
       const analysisResult = await executeOrCopy({
         prompt: analysisPrompt,
         mode,
-        preferredCLI: opts.cli,
+        preferredCLI: resolvedCli,
+        cwd: targetDir,
         permissionMode: opts.permissionMode,
         commandName: 'check-drift',
         pasteHint: 'the agent will analyze the repo and output a drift report to stdout; copy it into a new drift report file.',
@@ -131,7 +138,7 @@ export function checkDriftCommand(): Command {
       if (mode === 'copy') {
         try {
           const { default: clipboard } = await import('clipboardy');
-          const followup = buildClipboardFollowup(reportPath, fixSeverity);
+          const followup = driftClipboardFollowup(reportPath, fixSeverity);
           await clipboard.write(followup);
           log.done(`Clipboard updated: short prompt referencing ${pc.dim(reportPath)}.`);
         } catch {
@@ -144,16 +151,27 @@ export function checkDriftCommand(): Command {
       if (fixSeverity) {
         log.blank();
         log.info(`Applying ${pc.bold(fixSeverity === 'all' ? 'ALL' : fixSeverity + '+')} patches from the drift report...`);
-        const applyPrompt = buildApplyPrompt(reportPath, fixSeverity);
+        const applyPrompt = driftApplyPrompt(reportPath, fixSeverity);
         const applyResult = await executeOrCopy({
           prompt: applyPrompt,
           mode: 'auto',
-          preferredCLI: opts.cli,
+          preferredCLI: resolvedCli,
+          cwd: targetDir,
           permissionMode: opts.permissionMode ?? 'acceptEdits',
           commandName: 'check-drift --fix',
           pasteHint: `the agent will read ${reportPath} and apply patches.`,
         });
         if (applyResult.outcome === 'failed') process.exit(1);
+
+        // Persist Phase 2 output so audit info isn't lost to terminal scrollback.
+        const fixLogContent = buildFixLog(reportPath, fixSeverity, applyResult.stdout ?? '');
+        const fixLogPath = await writeCommandLog({
+          targetDir,
+          category: 'drift',
+          suffix: 'fix',
+          content: fixLogContent,
+        });
+        log.info(`Fix log: ${pc.dim(fixLogPath)}`);
       }
     });
 }
@@ -253,8 +271,6 @@ function refResolvesSomewhere(targetDir: string, ref: string): boolean {
     '.claude/hooks',
     '.cursor',
     '.cursor/rules',
-    '.agent',
-    '.agent/rules',
     '.github',
   ];
   for (const root of implicitRoots) {
@@ -394,59 +410,7 @@ async function buildAnalysisPrompt(targetDir: string, findings: DriftFinding[]):
     ? findings.map((f) => `- [${f.kind}] ${f.message} (${f.source})`).join('\n')
     : '- (none — static checks passed)';
 
-  return `# AI Context — drift analysis
-
-You are auditing whether \`.ai-context/\` still accurately describes the current repository. Produce a drift report as your stdout response. DO NOT apply any patches — this run is analysis-only. A separate \`--fix\` command will apply approved patches by reading this report file.
-
-## Static-check findings
-
-${findingsText}
-
-## Current \`.ai-context/\` content
-
-${sections.join('\n\n')}
-
-## Recent git activity (last 50 commits)
-
-\`\`\`
-${gitLog.slice(0, 8000)}
-\`\`\`
-
-## Repository tree (depth 3, no node_modules/dist/.git)
-
-\`\`\`
-${tree.slice(0, 4000)}
-\`\`\`
-
-## Task
-
-1. Compare \`project.overview.md\` against the current mission/scope implied by recent commits and the tree. Flag drift.
-2. Compare \`project.structure.md\` against the current tree. Flag removed, renamed, or added top-level areas.
-3. Compare \`project.decisions.md\` against the kinds of decisions implied by recent commits (new infra, auth, data flow). Flag missing or stale entries.
-4. Produce a **concise drift report** formatted like this:
-
-\`\`\`markdown
-# Drift findings
-
-## [significant] <title>
-**File**: \`<path>\`
-**Issue**: <one sentence>
-**Proposed patch**:
-\`\`\`diff
-- old
-+ new
-\`\`\`
-
-## [moderate] <title>
-...
-
-## [minor] <title>
-...
-\`\`\`
-
-5. Use exact severity tags in brackets: \`[significant]\`, \`[moderate]\`, or \`[minor]\`. These are machine-parsed by \`--fix\`.
-6. If no drift is found, output only: "No drift detected." and stop.
-`;
+  return driftAnalysisPrompt({ findingsText, sections, gitLog, tree });
 }
 
 function buildReportFile(findings: DriftFinding[], agentAnalysis: string, targetDir: string): string {
@@ -479,33 +443,25 @@ function buildReportFile(findings: DriftFinding[], agentAnalysis: string, target
   ].join('\n');
 }
 
-function buildClipboardFollowup(reportPath: string, fixSeverity: string | null): string {
-  const sev = fixSeverity ?? 'significant';
-  const severityLabel = sev === 'all'
-    ? 'all severity levels'
-    : `\`[${sev}]\` (and higher) patches`;
-  return `Read ${reportPath} and apply ${severityLabel} per the "Proposed patch" diffs in each finding. Report which files you edited. If a patch's "before" context no longer matches the current file, skip that patch and note it in your response.\n`;
-}
-
-function buildApplyPrompt(reportPath: string, severity: string): string {
-  const severityClause = severity === 'all'
-    ? 'all severity levels ([significant], [moderate], [minor])'
-    : severity === 'significant'
-      ? 'only [significant] findings'
-      : severity === 'moderate'
-        ? '[significant] and [moderate] findings'
-        : 'all findings';
-
-  return `# AI Context — apply drift patches
-
-Read the drift report at \`${reportPath}\`. For each finding at or above ${severityClause}, apply the "Proposed patch" diff directly to the referenced file.
-
-Rules:
-1. Skip any patch whose "before" context no longer matches the current file exactly — don't force it.
-2. After applying patches, update \`.ai-context/project.overview.md\` \`last_updated\` frontmatter to today's date.
-3. Report which files you edited and which patches were skipped with reasons.
-4. Do NOT edit anything outside of \`.ai-context/\` — all drift patches target files inside that directory.
-`;
+function buildFixLog(reportPath: string, severity: string, agentOutput: string): string {
+  return [
+    '---',
+    'command: ai-context check-drift --fix',
+    `generated_at: ${isoStamp()}`,
+    `severity: ${severity}`,
+    `source_report: ${reportPath}`,
+    '---',
+    '',
+    '# Fix log',
+    '',
+    `**Source report**: \`${reportPath}\``,
+    `**Severity applied**: ${severity}`,
+    '',
+    '## Agent output',
+    '',
+    agentOutput.trim() || '_No agent output captured._',
+    '',
+  ].join('\n');
 }
 
 // ---------------------------------------------------------------------------

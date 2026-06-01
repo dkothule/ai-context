@@ -3,6 +3,8 @@ import { resolve, join, basename } from 'path';
 import { existsSync } from 'fs';
 import { readdir, stat } from 'fs/promises';
 import { getRegisteredCLIs } from '../core/agentCLI.js';
+import { resolveConfiguredCli } from '../core/manifest.js';
+import { compactRollupPrompt } from '../prompts/index.js';
 import { executeOrCopy } from '../core/clipboardFallback.js';
 import { writeCommandLog, isoStamp } from '../core/logWriter.js';
 import { log } from '../ui/logger.js';
@@ -29,7 +31,7 @@ export function compactCommand(): Command {
     .option('-n, --dry-run', 'Print what would be archived; no execution or clipboard')
     .option('--print', 'Print the rollup prompt to stdout (bypass execution and clipboard)')
     .option('--copy', 'Copy the prompt to the clipboard (skip CLI execution)')
-    .option('--cli <name>', 'Force a specific CLI (e.g. claude, codex)')
+    .option('--cli <name>', 'Force a specific CLI (e.g. claude, codex, cursor)')
     .option('--permission-mode <mode>', `Override claude --permission-mode (${VALID_PERMISSION_MODES.join('|')})`)
     .action(async (pathArg: string, opts: CompactOptions) => {
       const targetDir = resolve(pathArg);
@@ -87,15 +89,22 @@ export function compactCommand(): Command {
 
       const mode = opts.print ? 'print' : opts.copy ? 'copy' : 'auto';
 
+      // Default to the CLI the project was configured with (manifest), unless
+      // --cli overrides it. Null/stale → undefined → executeOrCopy auto-detects.
+      const contextDir = join(targetDir, '.ai-context');
+      const resolvedCli = opts.cli ?? (await resolveConfiguredCli(contextDir, getRegisteredCLIs()));
+
       if (mode !== 'print') {
         log.heading('AI Context — compact');
-        log.info(`Archiving ${pc.bold(String(toArchive.length))} session log(s) via ${mode === 'copy' ? 'clipboard' : 'agent CLI'}...`);
+        const via = mode === 'copy' ? 'clipboard' : resolvedCli ? `${resolvedCli} CLI` : 'agent CLI';
+        log.info(`Archiving ${pc.bold(String(toArchive.length))} session log(s) via ${via}...`);
       }
 
       const result = await executeOrCopy({
         prompt,
         mode,
-        preferredCLI: opts.cli,
+        preferredCLI: resolvedCli,
+        cwd: targetDir,
         permissionMode: opts.permissionMode,
         commandName: 'compact',
         pasteHint: 'the agent will read, summarize, and archive the listed session files.',
@@ -209,57 +218,21 @@ function buildRollupPrompt(
   const fileList = toArchive
     .map((s) => `- ${s.relPath} (${isoDate(s.mtime)})`)
     .join('\n');
+  const archivedList = toArchive
+    .map((s) => `- ${basename(s.relPath)} — one-line summary`)
+    .join('\n');
+  const deleteList = toArchive.map((s) => `\`${s.relPath}\``).join(', ');
 
-  return `# AI Context — session compaction
-
-You are compressing \`.ai-context/sessions/\` to prevent context bloat. Read the listed session files, extract what still matters, write a single rollup, then delete the source files.
-
-## Parameters
-- Older-than threshold: ${olderThanDays} days
-- Keep count (newest preserved): ${keepCount}
-- Source count: ${toArchive.length}
-- Rollup target: \`${rollupRel}\`
-
-## Source files to archive (${toArchive.length}):
-
-${fileList}
-
-## Task
-
-1. **Read each source file above.**
-2. **Extract into the rollup**:
-   - Decisions carried forward (choices still in effect)
-   - Open threads / TODOs still relevant today
-   - Non-obvious file/area knowledge (context about specific files that isn't discoverable from code alone)
-3. **Write the rollup** to \`${rollupRel}\` using this exact template (fill in the content, keep the frontmatter keys and section headings):
-
-\`\`\`markdown
----
-archived: true
-range_start: ${rangeStart}
-range_end: ${rangeEnd}
-source_count: ${toArchive.length}
----
-
-# Archived sessions ${rangeStart} → ${rangeEnd}
-
-## Decisions carried forward
-- <short decision> — rationale; source: <filename>
-
-## Open threads at end of range
-- <thread> — last status; source: <filename>
-
-## File/area knowledge
-- <path/to/file or area>: <what you need to know>
-
-## Archived sessions
-${toArchive.map((s) => `- ${basename(s.relPath)} — one-line summary`).join('\n')}
-\`\`\`
-
-4. **After the rollup is written and you've verified it captures each source file's essence, DELETE the source files** (${toArchive.map((s) => `\`${s.relPath}\``).join(', ')}).
-5. If any source file has uniquely important details that don't fit the schema above, preserve them verbatim in the rollup under a \`## Verbatim preserved from <filename>\` section rather than losing them.
-6. Briefly report which source files were archived and confirm the rollup path.
-
-Sessions directory: \`${sessionsDir}\`
-`;
+  return compactRollupPrompt({
+    olderThanDays,
+    keepCount,
+    sourceCount: toArchive.length,
+    rollupRel,
+    fileList,
+    rangeStart,
+    rangeEnd,
+    archivedList,
+    deleteList,
+    sessionsDir,
+  });
 }

@@ -35,4 +35,13 @@ Before non-trivial work (multi-session, architectural change, external dependenc
 1. Write `.ai-context/sessions/YYYY-MM-DD-<topic>.md` from `_template.md`. Multiple logs per day are fine — one per topic.
 2. Update `project.tasks.md`, `project.decisions.md`, `project.changelog.md` as applicable.
 
+## Hooks
+Cursor session hooks are configured in `.cursor/hooks.json`:
+- `preCompact` autosaves the working transcript to `.ai-context/sessions/YYYY-MM-DD-HHMM-precompact-autosave.md` before compaction. After compaction, review the autosave, curate it into a proper session log, record the autosave filename as `source_autosave`, copy its `local_transcript_ref` if present, then delete the autosave. Treat `local_transcript_ref` as a local/private fallback pointer, not the durable handoff.
+- `sessionEnd` reminds you to write a session log if today's log is missing.
+- `sessionStart` surfaces any pending autosave for curation.
+
+## CLI integration
+`ai-context setup` / `compact` / `check-drift` auto-detect the Cursor `agent` CLI (with fallback to the legacy `cursor-agent` binary), Claude Code, or Codex for non-interactive execution. If no CLI is on PATH or authenticated, the prompt is copied to the clipboard — paste it into the Cursor Agent panel as a fallback.
+
 Do not duplicate standards in this file; maintain them in `.ai-context/standards/`.

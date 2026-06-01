@@ -14,12 +14,11 @@ flowchart TB
   claude[Claude Code]
   cursor[Cursor]
   codex[Codex]
-  antigravity[Antigravity]
 
   subgraph proj[Your project]
     direction TB
-    adapters["Thin adapter wrappers<br/><br/>CLAUDE.md<br/>AGENTS.md<br/>.cursor/rules/main.mdc<br/>.agent/rules/rules.md"]
-    hooks[".claude/hooks/<br/>Stop, PreCompact,<br/>SessionStart"]
+    adapters["Thin adapter wrappers<br/><br/>CLAUDE.md<br/>AGENTS.md<br/>.cursor/rules/main.mdc"]
+    hooks["Agent hooks<br/><br/>.claude/hooks/ + settings.json<br/>.cursor/hooks/ + hooks.json<br/>.codex/hooks/ + hooks.json"]
     ctx["<b>.ai-context/</b><br/>single source of truth<br/><br/>project.*.md<br/>standards/<br/>plans/<br/>sessions/<br/>logs/"]
   end
   
@@ -28,18 +27,18 @@ flowchart TB
   cli -- check-drift / compact --> ctx
 
   claude -- hook callbacks --> hooks
+  cursor -- hook callbacks --> hooks
+  codex -- hook callbacks --> hooks
   hooks -- write autosaves --> ctx
 
   claude -- read on session start --> adapters
   cursor -- read on session start --> adapters
   codex -- read on session start --> adapters
-  antigravity -- read on session start --> adapters
   adapters -- redirect to --> ctx
 
   claude -- read & write on demand --> ctx
   cursor -- read & write on demand --> ctx
   codex -- read & write on demand --> ctx
-  antigravity -- read & write on demand --> ctx
 
 ```
 
@@ -47,7 +46,7 @@ flowchart TB
 
 - **One shared directory**, not per-agent configs. `.ai-context/` is the authoritative state.
 - **Thin adapters**. Agent-specific files contain pointers, not content. Keeps context windows clean.
-- **Hooks are invisible glue**. Claude Code hooks fire automatically to preserve context on compaction; users don't invoke them.
+- **Hooks are invisible glue**. Claude Code, Cursor, and Codex hooks fire automatically to preserve context on compaction; users don't invoke them.
 - **The CLI is orthogonal**. Agents work without the CLI once installed. The CLI is only for install, maintenance (drift, compact), and removal.
 
 ---
@@ -71,10 +70,10 @@ flowchart TD
   G --> I[copy template files<br/>→ target project]
   H --> I
 
-  I --> J[install .claude/hooks/*.sh<br/>+ additive merge into settings.json<br/>Stop, PreCompact, SessionStart]
+  I --> J[install selected-agent hooks<br/>Claude settings.json<br/>Cursor hooks.json<br/>Codex hooks.json + config.toml]
   J --> K[restore project-owned files<br/>from backup by ownership pattern<br/>with preserveTimestamps]
   K --> L[write updated manifest.json<br/>version, schema, previous_version]
-  L --> M[run setup prompt via<br/>detected CLI claude / codex / gemini]
+  L --> M[run setup prompt via<br/>detected CLI claude / cursor / codex]
   M --> N[write install log to<br/>.ai-context/logs/install/ts.md]
   N --> O[write setup log to<br/>.ai-context/logs/setup/ts.md]
 ```
@@ -82,7 +81,7 @@ flowchart TD
 **Key properties:**
 
 - **Every run is recoverable.** Backups land in `.ai-context-backups/<timestamp>/` before any overwrite.
-- **Additive hook merge.** The installer adds missing hook events without touching hooks the user owns. A v1.0 install with only `Stop` is cleanly upgraded to v1.1's `Stop + PreCompact + SessionStart`.
+- **Additive hook merge.** The installer adds missing hook events without touching hooks the user owns. Claude settings, Cursor hooks, and Codex hooks are all merged rather than blindly overwritten.
 - **Ownership-based restore.** `project.overview.md` (project-owned) is restored from backup; `project.rules.base.md` (tool-owned) is not. See [File ownership model](#file-ownership-model) below.
 - **Timestamps preserved.** `fs.cp` runs with `preserveTimestamps: true` in both backup and restore so session-log age tracking survives upgrades. Without this, `ai-context compact` would see every file as brand new after each upgrade.
 
@@ -95,7 +94,7 @@ Every agent that reads `.ai-context/` follows the same tiered protocol on sessio
 ```mermaid
 sequenceDiagram
   participant User
-  participant Agent as Claude / Cursor /<br/>Codex / Antigravity
+  participant Agent as Claude / Cursor / Codex
   participant Ctx as .ai-context/
 
   User->>Agent: start session
@@ -204,7 +203,8 @@ sequenceDiagram
 **Design decisions:**
 
 - **Both manual and auto triggers run the same path.** An earlier design blocked manual `/compact` to force a session log first; that friction wasn't worth it. The autosave captures context regardless of trigger.
-- **SessionStart(compact) is the only event that can inject context post-compaction.** `PostCompact` exists but can't reach the agent. `SessionStart(compact)` uses `additionalContext` — the hook system's only channel back into the running session.
+- **Post-compaction reminder uses the best channel each agent exposes.** Claude uses `SessionStart(compact)` with `additionalContext`; Cursor uses `sessionStart`; Codex uses `PostCompact` and also keeps `SessionStart` as a leftover-autosave safety net.
+- **Autosaves preserve a breadcrumb, not the durable record.** The autosave stores a `local_transcript_ref` pointer to the local transcript JSONL and, when possible, a recent-turn excerpt. The post-compact session should copy `source_autosave` and `local_transcript_ref` into the curated session log before deleting the autosave, so exact prior discussion remains recoverable locally if the compacted summary missed a critical detail. Older autosaves may use the legacy field name `transcript_ref`; curators should normalize that to `local_transcript_ref`. Hooks write the path home-relative when possible, but because `local_transcript_ref` is still local/private, teams that commit or share session logs may redact it.
 - **Graceful `jq` degradation.** If `jq` isn't installed, the autosave still writes a stub with a pointer to the transcript JSONL path. Context isn't lost even in minimal environments.
 
 ---
@@ -313,14 +313,31 @@ The **restore logic** (`restoreProjectOwnedFiles` in `packages/cli/src/core/rest
 
 ---
 
+## Hook source of truth
+
+Hook behavior is split between script templates and generated configuration:
+
+| Artifact | Source of truth | Packaged/installed behavior |
+|---|---|---|
+| Claude hook scripts | `.claude/hooks/*.sh` at repo root | `scripts/sync-templates.sh` copies them to `packages/cli/src/templates/claude/hooks/`; `installClaudeHooks()` copies scripts and merges `.claude/settings.json` |
+| Cursor hook scripts | `.cursor/hooks/*.sh` at repo root | `scripts/sync-templates.sh` copies them to `packages/cli/src/templates/cursor/hooks/`; `copyTemplates()` installs scripts and `installCursorHooks()` writes/merges `.cursor/hooks.json` |
+| Codex hook scripts | `.codex/hooks/*.sh` at repo root | `scripts/sync-templates.sh` copies them to `packages/cli/src/templates/codex/hooks/`; `copyTemplates()` installs scripts and `installCodexHooks()` writes/merges `.codex/hooks.json` and `.codex/config.toml` |
+
+Generated hook config files are intentionally not template-owned for Cursor and Codex. `scripts/sync-templates.sh` removes `cursor/hooks.json`, `codex/hooks.json`, and `codex/config.toml` from the package template tree so upgrades can merge into a user's existing config instead of overwriting it.
+
+Codex project-level hooks live under the project's `.codex/` layer and are loaded for trusted projects, but project trust and hook trust are separate. After `.codex/hooks.json` is added or changed, run `/hooks` inside Codex for that project and trust the AI Context entries. Codex stores trust per hook hash in `~/.codex/config.toml`; newly added or changed events such as `PreCompact` and `PostCompact` will not run until reviewed. If a Codex Desktop session was already running before `.codex/hooks.json` was added or changed, restart the app/session or re-open the project before reviewing the hooks.
+
+---
+
 ## Command-level reference
 
 All commands live in `packages/cli/src/commands/` and share a small set of core modules:
 
 | Command | Primary logic | Log output |
 |---|---|---|
-| `init` / `apply` | `core/install.ts`, `core/copyTemplates.ts`, `core/claudeHooks.ts`, `core/restore.ts` | `.ai-context/logs/install/` |
+| `init` / `apply` | `core/install.ts`, `core/copyTemplates.ts`, `core/claudeHooks.ts`, `core/cursorHooks.ts`, `core/codexHooks.ts`, `core/restore.ts` | `.ai-context/logs/install/` |
 | `setup` | `core/setupFlow.ts`, `core/agentCLI.ts` | `.ai-context/logs/setup/` |
+| `use` | `commands/useCli.ts`, `core/manifest.ts` | (none — terminal only) |
 | `check-drift` | `commands/checkDrift.ts` + static checks inline | `.ai-context/logs/drift/` |
 | `compact` | `commands/compact.ts` | `.ai-context/logs/compact/` |
 | `uninstall` | `commands/uninstall.ts` | (none — terminal only) |
@@ -329,9 +346,18 @@ All commands live in `packages/cli/src/commands/` and share a small set of core 
 
 Shared primitives used by the LLM-driven commands (`setup`, `check-drift`, `compact`):
 
-- **`core/agentCLI.ts`** — registry of known CLIs (claude, codex, gemini), health checks, prompt execution with `--permission-mode acceptEdits` + pre-approved read-only Bash patterns (`diff`, `find`, `cat`, `ls`, `git diff|log|status`, `rg`, `tree`).
+- **`core/agentCLI.ts`** — thin public barrel re-exporting the agent-CLI subsystem under `core/cli/`:
+  `cli/types.ts` (CLIConfig + parser types), `cli/format.ts` (progress-label helpers),
+  `cli/vendors/{claude,codex,cursor}.ts` (one module per CLI: command shape + stream parsers,
+  the most vendor-volatile code, unit-tested via `tests/unit/cli/<vendor>-parser.test.ts`),
+  `cli/registry.ts` (the `CLI_REGISTRY` + spec/progress accessors), `cli/detection.ts`
+  (binary resolution + health checks), `cli/process.ts` (generic spawn), `cli/runner.ts`
+  (streaming prompt execution). Adding/fixing a CLI touches only its `cli/vendors/<name>.ts`.
 - **`core/clipboardFallback.ts`** — `executeOrCopy()` is the unified entry point. Tries the CLI first; on failure OR empty stdout, copies the prompt to clipboard with a clear paste hint. Does NOT fall back on permission denials alone — if stdout came through, the run counts as executed.
 - **`core/logWriter.ts`** — `writeCommandLog({ category, content })` writes `.ai-context/logs/<category>/<iso-ts>.md`. Append-only across upgrades.
+- **`prompts/`** — single home for all LLM prompts. Static prompts are `.md` (`prompts/setup/{fresh-install,upgrade}.md`, read at runtime); dynamic prompts are pure builder functions (`prompts/drift.ts`, `prompts/compact.ts`) that take gathered data and return strings — commands do the I/O, the prompt layer does not. Interactive (inquirer) CLI prompts are UI and live in `core/../ui/`, not here. See `src/prompts/README.md`.
+
+**Configured CLI (`configured_cli`).** The CLI chosen during `setup` is persisted to `manifest.json` by `runSetup` (via `setConfiguredCli()`) and reused as the default for `setup`/`check-drift`/`compact` (resolved via `resolveConfiguredCli()`, which ignores a stored value no longer in the registry). It carries forward across upgrades (`core/install.ts`) and is changed independently with `ai-context use [cli]`. `--cli <name>` overrides it per run; `null` means auto-detect. It is distinct from `agents_installed` (which adapter files were written).
 
 ---
 
@@ -340,7 +366,7 @@ Shared primitives used by the LLM-driven commands (`setup`, `check-drift`, `comp
 - **File system is the interop layer.** No daemon, no database, no cloud. Markdown files every agent and human can read, edit, grep, commit. The only stateful thing is the Claude Code transcript JSONL, and even that is a pointer (held in autosave files), not a copy.
 - **Adapters are thin.** `CLAUDE.md` is one line (`@AGENTS.md`) plus a few Claude-specific notes. `AGENTS.md` is ~40 lines. Neither duplicates `.ai-context/` content. This keeps agents' context windows clean and makes the single-source-of-truth rule actually enforceable.
 - **Tiered reading.** Always-read for orientation; on-demand reads for task-specific detail. Agents have finite context; this convention uses it efficiently.
-- **Hooks, not humans, preserve context.** Session logging is mandatory by convention, but also backstopped by Claude's Stop hook (reminder) and PreCompact hook (autosave). Users get a working system even when their discipline slips.
+- **Hooks, not humans, preserve context.** Session logging is mandatory by convention, but also backstopped by session-end reminders and PreCompact autosaves across Claude, Cursor, and Codex. Users get a working system even when their discipline slips.
 - **Every action is reversible.** Backups before every install. Nested `.ai-context/.git/` supported (filter excludes it from backup/restore). All LLM-driven commands have clipboard fallback. See the [README's Safety & rollback section](../README.md#safety--rollback).
 - **Ownership-based, not allowlist-based.** Project-owned files are identified by pattern, not enumerated. Custom files users add under `.ai-context/**` are preserved automatically.
 - **Logs always persist.** Install, setup, drift, compact — every run writes a markdown log to `.ai-context/logs/<category>/`, regardless of outcome (executed, clipboard, printed, failed). Users can audit what the tool + their agents actually did.
@@ -354,7 +380,7 @@ To support a new coding agent:
 1. **Add the adapter file.** A thin file pointing at `.ai-context/` in whatever format the agent expects (e.g. `.newagent/rules.md`). Mirror the tiered reading + end-of-session discipline from existing adapters.
 2. **Register in `copyTemplates.ts`.** Add an entry to `AGENT_FILES` mapping the agent ID to its file(s), and to `TEMPLATE_TO_TARGET` for the path mapping.
 3. **Add to `selectAgents()` in `prompts/agentSelector.ts`** so users can pick it during `init`.
-4. **(Optional) Add CLI support.** If the agent has a headless CLI like `claude -p`, register it in `agentCLI.ts`'s `CLI_REGISTRY` with appropriate flags. This enables `setup`, `check-drift`, `compact` to execute via that CLI instead of falling back to clipboard.
+4. **(Optional) Add CLI support.** If the agent has a headless CLI like `claude -p`, create `core/cli/vendors/<name>.ts` exporting a `CLIConfig` (ping/run args + stream parsers) and register it in `core/cli/registry.ts`. Add parser fixture tests under `tests/unit/cli/`. This enables `setup`, `check-drift`, `compact` to execute via that CLI instead of falling back to clipboard.
 
 No changes to `.ai-context/` layout are needed — the whole directory is agent-agnostic by design.
 
@@ -363,5 +389,5 @@ No changes to `.ai-context/` layout are needed — the whole directory is agent-
 ## Further reading
 
 - [README](../README.md) — user-facing docs and usage
-- [Release history](../.ai-context/project.changelog.md) — when the tool is installed, this file lists user-visible changes version by version
+- [CHANGELOG](../CHANGELOG.md) — release history of the npm package
 - [LICENSE](../LICENSE) — MIT

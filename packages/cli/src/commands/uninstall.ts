@@ -4,6 +4,8 @@ import { existsSync } from 'fs';
 import { rm, mkdir } from 'fs/promises';
 import { createBackupDir, backupPath } from '../core/backup.js';
 import { removeHookFromSettings } from '../core/claudeHooks.js';
+import { removeCursorHooks } from '../core/cursorHooks.js';
+import { removeCodexHooks, removeCodexHooksFeatureFlag } from '../core/codexHooks.js';
 import { readManifest } from '../core/manifest.js';
 import { log } from '../ui/logger.js';
 import pc from 'picocolors';
@@ -13,14 +15,15 @@ import pc from 'picocolors';
 const MANAGED_PATHS = [
   '.ai-context',
   '.cursor/rules/main.mdc',
-  '.agent/rules/rules.md',
+  '.cursor/hooks',
+  '.codex/hooks',
   '.claude/hooks',
   'AGENTS.md',
   'CLAUDE.md',
 ];
 
 /** Parent dirs to prune if empty after removal. */
-const PRUNE_CANDIDATES = ['.cursor/rules', '.cursor', '.agent/rules', '.agent'];
+const PRUNE_CANDIDATES = ['.cursor/rules', '.cursor/hooks', '.cursor', '.codex/hooks', '.codex'];
 
 export function uninstallCommand(): Command {
   return new Command('uninstall')
@@ -80,11 +83,23 @@ export function uninstallCommand(): Command {
         log.step(`Removed ${rel}`);
       }
 
-      // 3. Remove hook from settings.json (proper JSON removal)
+      // 3. Remove hook entries from config files (proper JSON removal — preserves user-owned hooks)
       if (!opts.dryRun) {
-        const removed = await removeHookFromSettings(targetDir, false);
-        if (removed) {
-          log.step('Removed Stop hook from .claude/settings.json');
+        const claudeRemoved = await removeHookFromSettings(targetDir, false);
+        if (claudeRemoved) {
+          log.step('Removed AI Context hook(s) from .claude/settings.json');
+        }
+        const cursorRemoved = await removeCursorHooks(targetDir, false);
+        if (cursorRemoved) {
+          log.step('Removed AI Context hook(s) from .cursor/hooks.json');
+        }
+        const codexRemoved = await removeCodexHooks(targetDir, false);
+        if (codexRemoved) {
+          log.step('Removed AI Context hook(s) from .codex/hooks.json');
+        }
+        const codexFlagRemoved = await removeCodexHooksFeatureFlag(targetDir, false);
+        if (codexFlagRemoved) {
+          log.step('Removed Codex hooks feature flag from .codex/config.toml');
         }
       }
 

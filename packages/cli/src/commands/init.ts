@@ -3,10 +3,12 @@ import { resolve } from 'path';
 import { confirm } from '@inquirer/prompts';
 import { runInstall, TEMPLATES_DIR } from '../core/install.js';
 import { readSourceManifest } from '../core/manifest.js';
-import { selectAgents, parseAgentList } from '../prompts/agentSelector.js';
-import { interactiveSetup } from '../core/setupFlow.js';
+import { selectAgents, parseAgentList } from '../ui/agentSelector.js';
+import { interactiveSetup, runSetup } from '../core/setupFlow.js';
+import { getRegisteredCLIs } from '../core/agentCLI.js';
 import type { AgentId } from '../core/copyTemplates.js';
 import { log } from '../ui/logger.js';
+import { printCodexHookTrustReminder } from '../ui/notices.js';
 import pc from 'picocolors';
 
 export function initCommand(): Command {
@@ -16,6 +18,7 @@ export function initCommand(): Command {
     .option('-n, --dry-run', 'Print what would happen without writing anything')
     .option('-y, --yes', 'Skip confirmation prompts (CI-friendly)')
     .option('--agents <list>', 'Comma-separated agent list (skips interactive selection)')
+    .option('--cli <name>', 'CLI agent to run setup non-interactively (claude, codex, cursor)')
     .option('--gitignore', 'Add sessions/ and backups/ to .gitignore')
     .action(
       async (
@@ -24,6 +27,7 @@ export function initCommand(): Command {
           dryRun?: boolean;
           yes?: boolean;
           agents?: string;
+          cli?: string;
           gitignore?: boolean;
         },
       ) => {
@@ -58,6 +62,12 @@ export function initCommand(): Command {
           agents = ALL_AGENTS;
         } else {
           agents = await selectAgents();
+        }
+
+        // Validate --cli up front (mirrors setup/compact/check-drift).
+        if (opts.cli && !getRegisteredCLIs().includes(opts.cli)) {
+          log.error(`Unknown CLI: ${opts.cli}. Valid options: ${getRegisteredCLIs().join(', ')}`);
+          process.exit(1);
         }
 
         // 3. .gitignore (opt-in only via --gitignore flag)
@@ -100,10 +110,24 @@ export function initCommand(): Command {
           }
           log.rule();
 
-          // 5. Run setup — same interactive flow as `ai-context setup`
+          if (!opts.dryRun && result.codexHooksMerged) {
+            printCodexHookTrustReminder();
+          }
+
+          // 5. Run setup. Resolve the CLI without prompting when we can:
+          //    --cli wins; otherwise in non-interactive (--yes) mode default to
+          //    the first selected agent (adapter IDs are exactly the registered
+          //    CLIs). Either way runSetup persists it to manifest.configured_cli
+          //    so follow-up commands use the same CLI. Only a fully interactive
+          //    run (no --yes, no --cli) shows the CLI picker.
           if (!opts.dryRun) {
             log.blank();
-            await interactiveSetup(targetDir, result.applyMode);
+            const setupCli = opts.cli ?? (opts.yes ? agents[0] : undefined);
+            if (setupCli) {
+              await runSetup(targetDir, result.applyMode, { cli: setupCli });
+            } else {
+              await interactiveSetup(targetDir, result.applyMode);
+            }
           }
         } catch (err) {
           log.error(err instanceof Error ? err.message : String(err));

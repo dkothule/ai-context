@@ -108,6 +108,7 @@ else
     m.installed_at = null;
     m.apply_mode = 'source-tree';
     m.agents_installed = null;
+    m.configured_cli = null;
     m.previous_version = null;
     m.previous_schema_version = null;
     fs.writeFileSync(path, JSON.stringify(m, null, 2) + '\n');
@@ -116,9 +117,27 @@ else
   echo "  Synced tool-owned .ai-context files -> templates/ai-context (project-owned files preserved)"
 fi
 
-# .ai-context-setup/ is NOT bundled in the npm package (setup prompts are in src/setup-prompts/)
-copy_dir "$REPO_ROOT/.cursor"           "cursor"
-copy_dir "$REPO_ROOT/.agent"            "agent"
+# .ai-context-setup/ is NOT bundled in the npm package (setup prompts are in src/prompts/setup/)
+if [[ -d "$REPO_ROOT/.cursor" ]]; then
+  copy_dir "$REPO_ROOT/.cursor"           "cursor"
+  # hooks.json is managed by installCursorHooks() (write or merge); excluding it
+  # from the template ensures user customisations are never overwritten on upgrade.
+  $DRY_RUN || rm -f "$DEST/cursor/hooks.json"
+else
+  echo "  WARN: .cursor/ not found at repo root — skipping cursor template sync"
+fi
+
+if [[ -d "$REPO_ROOT/.codex" ]]; then
+  copy_dir "$REPO_ROOT/.codex"            "codex"
+  # hooks.json AND config.toml are managed by installCodexHooks() (write or
+  # merge). Excluding from the template ensures user customisations are never
+  # overwritten on upgrade.
+  $DRY_RUN || rm -f "$DEST/codex/hooks.json"
+  $DRY_RUN || rm -f "$DEST/codex/config.toml"
+else
+  echo "  WARN: .codex/ not found at repo root — skipping codex template sync"
+fi
+
 # .github/ is NOT synced — workflows/ is this repo's CI (not a target-project template),
 # and copilot-instructions.md was removed in v1.1.0 (see backlog: future command to
 # generate a self-contained copilot-instructions.md from .ai-context standards).

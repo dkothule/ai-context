@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "preCompact": [
+      { "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.cursor/hooks/pre-compact.sh\"" }
+    ],
+    "sessionEnd": [
+      { "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.cursor/hooks/session-log-check.sh\"" }
+    ],
+    "sessionStart": [
+      { "command": "bash \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.cursor/hooks/post-compact-reminder.sh\"" }
+    ]
+  }
+}

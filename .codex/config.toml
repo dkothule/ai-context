@@ -1,0 +1,7 @@
+# AI Context — Codex configuration
+# The `hooks` feature flag is required for the Codex CLI to load
+# hooks defined in `.codex/hooks.json`.
+# See: https://developers.openai.com/codex/hooks
+
+[features]
+hooks = true

@@ -11,6 +11,7 @@ import { statusCommand } from './commands/status.js';
 import { versionCommand } from './commands/version.js';
 import { compactCommand } from './commands/compact.js';
 import { checkDriftCommand } from './commands/checkDrift.js';
+import { useCliCommand } from './commands/useCli.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -32,5 +33,6 @@ program.addCommand(statusCommand());
 program.addCommand(versionCommand());
 program.addCommand(compactCommand());
 program.addCommand(checkDriftCommand());
+program.addCommand(useCliCommand());
 
 program.parse();
