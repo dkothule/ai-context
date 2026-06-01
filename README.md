@@ -484,7 +484,6 @@ Ideas on the near-term roadmap. Directions, not commitments — open an issue if
 - **Skills** — install and manage skills.
 - **Windows-native hooks** — drop the Git Bash / WSL dependency with PowerShell or Node equivalents for the bash hooks.
 - **Self-contained GitHub Copilot adapter** — a generator command that builds a flat `.github/copilot-instructions.md` by synthesizing `.ai-context/` content, since Copilot can't resolve relative links the way CLAUDE.md / AGENTS.md can.
-- **First-class Codex `--full-auto` support** — non-interactive permission flags for the `codex` CLI so `setup` / `check-drift` / `compact` run cleanly end-to-end instead of falling back to clipboard.
 - **Hook smoke automation** — add live hook-trigger smoke tests for Cursor/Codex when their CLIs expose stable hook test commands.
 - **Plugin system** — register custom static drift checks or additional "Read First" files without forking the tool.
 - **`ai-context export`** — dump a flattened snapshot of `.ai-context/` (markdown bundle + manifest) for offline sharing, incident tickets, or attaching to bug reports.
