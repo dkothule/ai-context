@@ -36,6 +36,7 @@ describe('installClaudeHooks — fresh install', () => {
     const merged = JSON.parse(await readFile(join(claudeDir, 'settings.json'), 'utf8'));
 
     expect(findEntry(merged.hooks.Stop, 'session-log-check.sh')).toBeDefined();
+    expect(merged.hooks.Stop[0].hooks[0].command).toContain('CLAUDE_PROJECT_DIR');
     expect(findEntry(merged.hooks.PreCompact, 'pre-compact.sh')).toBeDefined();
     expect(merged.hooks.PreCompact.some((e: Entry) => e.matcher === 'manual')).toBe(true);
     expect(merged.hooks.PreCompact.some((e: Entry) => e.matcher === 'auto')).toBe(true);
@@ -89,8 +90,49 @@ describe('installClaudeHooks — upgrade / idempotency', () => {
 
     const merged = JSON.parse(await readFile(join(claudeDir, 'settings.json'), 'utf8'));
     expect(merged.hooks.Stop).toHaveLength(1);
+    expect(merged.hooks.Stop[0].hooks[0].command).toContain('CLAUDE_PROJECT_DIR');
     expect(merged.hooks.PreCompact).toHaveLength(2);
     expect(merged.hooks.SessionStart).toHaveLength(1);
+  });
+
+  it('updates older AI Context relative commands to project-root-resolved commands', async () => {
+    const existing = {
+      hooks: {
+        Stop: [
+          {
+            matcher: '',
+            hooks: [{ type: 'command', command: 'bash .claude/hooks/session-log-check.sh', timeout: 5000 }],
+          },
+        ],
+        PreCompact: [
+          {
+            matcher: 'manual',
+            hooks: [{ type: 'command', command: 'bash .claude/hooks/pre-compact.sh', timeout: 5000 }],
+          },
+          {
+            matcher: 'auto',
+            hooks: [{ type: 'command', command: 'bash .claude/hooks/pre-compact.sh', timeout: 10000 }],
+          },
+        ],
+        SessionStart: [
+          {
+            matcher: 'compact',
+            hooks: [{ type: 'command', command: 'bash .claude/hooks/post-compact-reminder.sh', timeout: 5000 }],
+          },
+        ],
+      },
+    };
+    await writeFile(join(claudeDir, 'settings.json'), JSON.stringify(existing, null, 2));
+
+    const result = await installClaudeHooks(templateClaudeDir, tmpDir, false);
+    expect(result.settingsMerged).toBe(true);
+    expect(result.eventsMerged.sort()).toEqual(['PreCompact', 'SessionStart', 'Stop']);
+
+    const merged = JSON.parse(await readFile(join(claudeDir, 'settings.json'), 'utf8'));
+    expect(merged.hooks.Stop[0].hooks[0].command).toContain('CLAUDE_PROJECT_DIR');
+    expect(merged.hooks.PreCompact[0].hooks[0].command).toContain('CLAUDE_PROJECT_DIR');
+    expect(merged.hooks.PreCompact[1].hooks[0].command).toContain('CLAUDE_PROJECT_DIR');
+    expect(merged.hooks.SessionStart[0].hooks[0].command).toContain('CLAUDE_PROJECT_DIR');
   });
 
   it('preserves user-owned hooks in foreign events and adds ours additively', async () => {
@@ -127,14 +169,34 @@ describe('installClaudeHooks — upgrade / idempotency', () => {
 });
 
 describe('removeHookFromSettings', () => {
-  it('removes all three AI Context hooks and cleans up empty hooks object', async () => {
+  it('removes all three AI Context hooks and deletes the stub file when nothing else remains', async () => {
     await installClaudeHooks(templateClaudeDir, tmpDir, false);
 
     const removed = await removeHookFromSettings(tmpDir, false);
     expect(removed).toBe(true);
 
+    // On a fresh install we wrote `{ "hooks": {...} }`; after removal the
+    // file is purely our stub and should be deleted.
+    const { existsSync } = await import('fs');
+    expect(existsSync(join(claudeDir, 'settings.json'))).toBe(false);
+  });
+
+  it('preserves settings.json when user-owned keys (e.g. permissions) remain', async () => {
+    await writeFile(
+      join(claudeDir, 'settings.json'),
+      JSON.stringify({ permissions: { allow: ['Bash'] } }),
+    );
+    await installClaudeHooks(templateClaudeDir, tmpDir, false);
+
+    const removed = await removeHookFromSettings(tmpDir, false);
+    expect(removed).toBe(true);
+
+    const { existsSync } = await import('fs');
+    expect(existsSync(join(claudeDir, 'settings.json'))).toBe(true);
+
     const updated = JSON.parse(await readFile(join(claudeDir, 'settings.json'), 'utf8'));
     expect(updated.hooks).toBeUndefined();
+    expect(updated.permissions).toEqual({ allow: ['Bash'] });
   });
 
   it('leaves user-owned entries in the same events intact', async () => {

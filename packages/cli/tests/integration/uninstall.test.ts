@@ -8,17 +8,23 @@ import { runInstall } from '../../src/core/install.js';
 import { ALL_AGENTS } from '../../src/core/copyTemplates.js';
 import { readManifest } from '../../src/core/manifest.js';
 
-/** Inline minimal uninstall logic for testing (mirrors uninstall command). */
+/**
+ * Inline uninstall logic mirroring uninstall.ts. Kept in sync with the real
+ * MANAGED_PATHS list and the per-config-file removal helpers so this test
+ * exercises the same cleanup contract users see.
+ */
 async function runUninstall(targetDir: string, dryRun = false): Promise<{ backupDir: string | null }> {
   const { createBackupDir, backupPath } = await import('../../src/core/backup.js');
   const { rm: fsRm } = await import('fs/promises');
   const { removeHookFromSettings } = await import('../../src/core/claudeHooks.js');
+  const { removeCursorHooks } = await import('../../src/core/cursorHooks.js');
+  const { removeCodexHooks, removeCodexHooksFeatureFlag } = await import('../../src/core/codexHooks.js');
 
   const MANAGED_PATHS = [
     '.ai-context',
-    '.ai-context-setup',
     '.cursor/rules/main.mdc',
-    '.agent/rules/rules.md',
+    '.cursor/hooks',
+    '.codex/hooks',
     '.claude/hooks',
     'AGENTS.md',
     'CLAUDE.md',
@@ -36,7 +42,13 @@ async function runUninstall(targetDir: string, dryRun = false): Promise<{ backup
         await fsRm(full, { recursive: true, force: true });
       }
     }
+    // Per-config-file cleanup: remove our entries from settings.json /
+    // hooks.json and our flag line from config.toml. Each helper deletes the
+    // file entirely if only our content remained.
     await removeHookFromSettings(targetDir, false);
+    await removeCursorHooks(targetDir, false);
+    await removeCodexHooks(targetDir, false);
+    await removeCodexHooksFeatureFlag(targetDir, false);
   }
 
   return { backupDir };
@@ -116,5 +128,25 @@ describe('uninstall', () => {
 
     expect(existsSync(join(tmpDir, '.ai-context'))).toBe(true);
     expect(existsSync(join(tmpDir, 'CLAUDE.md'))).toBe(true);
+  });
+
+  it('leaves no AI Context-installed hook config files behind after uninstall of a fresh install', async () => {
+    // Fresh install: every file under these paths was created by AI Context,
+    // so an uninstall should remove all of them — not leave behind stub
+    // hooks.json / config.toml shells.
+    await runInstall({ targetDir: tmpDir, agents: ALL_AGENTS });
+
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks.json'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.codex', 'hooks.json'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.codex', 'config.toml'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.claude', 'settings.json'))).toBe(true);
+
+    await runUninstall(tmpDir);
+
+    // None of the AI Context-created config files should remain.
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks.json'))).toBe(false);
+    expect(existsSync(join(tmpDir, '.codex', 'hooks.json'))).toBe(false);
+    expect(existsSync(join(tmpDir, '.codex', 'config.toml'))).toBe(false);
+    expect(existsSync(join(tmpDir, '.claude', 'settings.json'))).toBe(false);
   });
 });

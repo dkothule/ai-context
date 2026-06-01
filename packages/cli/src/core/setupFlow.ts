@@ -7,12 +7,14 @@ import type { KnownCLI } from './agentCLI.js';
 import { executeOrCopy } from './clipboardFallback.js';
 import type { ExecuteOrCopyMode, ExecuteOrCopyResult } from './clipboardFallback.js';
 import { writeCommandLog, isoStamp } from './logWriter.js';
+import { readManifest, setConfiguredCli } from './manifest.js';
 import type { ApplyMode } from './manifest.js';
 import { log } from '../ui/logger.js';
 import pc from 'picocolors';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SETUP_PROMPTS_DIR = join(__dirname, '..', '..', 'src', 'setup-prompts');
+// Static setup prompts live as .md under src/prompts/setup/ (read at runtime).
+const SETUP_PROMPTS_DIR = join(__dirname, '..', '..', 'src', 'prompts', 'setup');
 
 export function promptFileForMode(applyMode: ApplyMode): string {
   if (applyMode === 'fresh-install') {
@@ -50,9 +52,16 @@ export async function interactiveSetup(
     { name: 'Print prompt (manual setup)', value: '_print' },
   ];
 
+  // Pre-highlight the previously-configured CLI (if any) so re-runs default to it.
+  const manifest = await readManifest(join(targetDir, '.ai-context'));
+  const savedCli = manifest?.configured_cli ?? undefined;
+  const defaultChoice =
+    savedCli && registeredCLIs.includes(savedCli) ? savedCli : undefined;
+
   const chosen = await select<string>({
     message: 'Which CLI agent should configure this project?',
     choices,
+    default: defaultChoice,
   });
 
   if (chosen === '_print') {
@@ -74,14 +83,27 @@ export async function runSetup(
   options: SetupOptions = {},
 ): Promise<boolean> {
   const { cli, mode = 'auto', permissionMode } = options;
+  let effectiveMode = mode;
+
+  // Persist the user's CLI choice (on selection, regardless of execution
+  // outcome) so compact/check-drift default to it instead of auto-detecting.
+  // Skip 'print' (no CLI is chosen) and unknown CLIs.
+  if (mode !== 'print' && cli && getRegisteredCLIs().includes(cli)) {
+    await setConfiguredCli(join(targetDir, '.ai-context'), cli);
+  }
 
   // Only health-check when we're about to execute via a specific CLI.
   if (mode === 'auto' && cli) {
-    const status = await checkCLIStatus(cli);
+    const status = await checkCLIStatus(cli, { cwd: targetDir });
     if (status === 'not-found') {
       log.warn(`${cli} is not installed; falling back to clipboard.`);
+      effectiveMode = 'copy';
     } else if (status === 'not-authenticated') {
       log.warn(`${cli} is installed but not authenticated; falling back to clipboard.`);
+      effectiveMode = 'copy';
+    } else if (status === 'unavailable') {
+      log.warn(`${cli} is installed but not ready right now; falling back to clipboard.`);
+      effectiveMode = 'copy';
     } else {
       log.done(`${cli}: ready`);
     }
@@ -91,15 +113,24 @@ export async function runSetup(
   const promptContent = await readFile(promptFile, 'utf8');
 
   if (mode === 'auto') {
+    const target = effectiveMode === 'copy'
+      ? ' via clipboard fallback'
+      : cli
+        ? ` via ${pc.bold(cli)}`
+        : '';
     log.blank();
-    log.info(`Running ${applyMode === 'fresh-install' ? 'fresh-install' : 'upgrade'} setup${cli ? ` via ${pc.bold(cli)}` : ''}...`);
+    log.info(`Running ${applyMode === 'fresh-install' ? 'fresh-install' : 'upgrade'} setup${target}...`);
+    if (effectiveMode === 'auto') {
+      log.info('This can take a few minutes. If the agent does not finish before the timeout, the prompt will be copied to your clipboard.');
+    }
     log.blank();
   }
 
   const result = await executeOrCopy({
     prompt: promptContent,
-    mode,
+    mode: effectiveMode,
     preferredCLI: cli,
+    cwd: targetDir,
     permissionMode,
     commandName: 'setup',
     pasteHint: 'the agent will read .ai-context/ and update it for this project.',

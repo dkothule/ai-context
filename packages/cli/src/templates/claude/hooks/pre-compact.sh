@@ -12,6 +12,10 @@
 
 set -euo pipefail
 
+# Resolve the repo root defensively (Claude Code documents CWD=project root,
+# but this keeps the script working if invoked manually from a subdirectory).
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
 SESSIONS_DIR=".ai-context/sessions"
 
 # Read stdin JSON. We only need `transcript_path` for the autosave content.
@@ -24,6 +28,14 @@ extract_field() {
 
 trigger="$(extract_field trigger)"
 transcript_path="$(extract_field transcript_path)"
+local_transcript_ref="${transcript_path:-unknown}"
+# Relativize home paths to ~/ so the autosave never records a bare /Users/<name>
+# path; fall back to the passwd home dir when HOME is unset in the hook env.
+home_dir="${HOME:-}"
+[[ -z "$home_dir" ]] && home_dir="$(cd ~ 2>/dev/null && pwd)"
+if [[ -n "$home_dir" && "$local_transcript_ref" == "$home_dir"* ]]; then
+  local_transcript_ref="~${local_transcript_ref#"$home_dir"}"
+fi
 
 # Sessions dir may not exist yet (brand-new install) — just allow compaction.
 [[ -d "$SESSIONS_DIR" ]] || exit 0
@@ -36,17 +48,18 @@ autosave="${SESSIONS_DIR}/${date_str}-${time_str}-precompact-autosave.md"
 {
   printf -- '---\n'
   printf 'autosaved: true\n'
+  printf 'source: claude\n'
   printf 'trigger: %s\n' "${trigger:-unknown}"
   printf 'date: %s\n' "$date_str"
   printf 'time: %s\n' "$(date +%H:%M:%S)"
-  printf 'transcript_ref: %s\n' "${transcript_path:-unknown}"
+  printf 'local_transcript_ref: %s\n' "$local_transcript_ref"
   printf -- '---\n\n'
-  printf '# Pre-compact autosave\n\n'
+  printf '# Pre-compact autosave (Claude)\n\n'
   printf 'Context compaction (trigger: %s) fired. This file preserves a pointer to\n' "${trigger:-unknown}"
   printf 'the full transcript so information is not lost. The agent should review\n'
   printf 'this file in the next turn, write a curated session log using\n'
   printf '`.ai-context/sessions/_template.md`, then delete this autosave.\n\n'
-  printf '## Transcript reference\n\nFull transcript (JSONL): `%s`\n\n' "${transcript_path:-unknown}"
+  printf '## Transcript reference\n\nFull transcript (local JSONL): `%s`\n\n' "$local_transcript_ref"
 } > "$autosave"
 
 if command -v jq >/dev/null 2>&1 && [[ -n "${transcript_path:-}" && -f "$transcript_path" ]]; then

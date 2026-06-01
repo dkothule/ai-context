@@ -11,8 +11,10 @@ export interface ExecuteOrCopyOptions {
   prompt: string;
   /** auto = try CLI then fall back to clipboard; copy = clipboard only; print = stdout only. */
   mode?: ExecuteOrCopyMode;
-  /** CLI to prefer (claude, codex, gemini). If unset, auto-detect. */
+  /** CLI to prefer (claude, codex, cursor). If unset, auto-detect. */
   preferredCLI?: KnownCLI;
+  /** Working directory for the agent CLI process. */
+  cwd?: string;
   /** Override `--permission-mode` (claude only). */
   permissionMode?: string;
   /** User-facing command name for status messages ("setup", "compact", "check-drift"). */
@@ -44,7 +46,7 @@ export interface ExecuteOrCopyResult {
  * exit non-zero. All other outcomes are success from the CLI's point of view.
  */
 export async function executeOrCopy(opts: ExecuteOrCopyOptions): Promise<ExecuteOrCopyResult> {
-  const { prompt, mode = 'auto', preferredCLI, permissionMode, commandName, pasteHint } = opts;
+  const { prompt, mode = 'auto', preferredCLI, cwd, permissionMode, commandName, pasteHint } = opts;
 
   if (mode === 'print') {
     process.stdout.write(prompt);
@@ -57,7 +59,7 @@ export async function executeOrCopy(opts: ExecuteOrCopyOptions): Promise<Execute
   }
 
   // mode === 'auto' — try CLI first
-  const result = await runPromptContentViaCLI(prompt, { preferredCLI, permissionMode });
+  const result = await runPromptContentViaCLI(prompt, { preferredCLI, cwd, permissionMode });
 
   // Treat as executed if the CLI returned a real stdout/result, even if some
   // non-edit tool calls (e.g. Bash) hit permission_denials. The agent routinely
@@ -84,6 +86,10 @@ export async function executeOrCopy(opts: ExecuteOrCopyOptions): Promise<Execute
   return copyToClipboardWithStatus(prompt, commandName, pasteHint, reason);
 }
 
+function displayFallbackReason(reason: string): string {
+  return reason.replace(/^CLI execution failed:\s*/, '');
+}
+
 async function copyToClipboardWithStatus(
   prompt: string,
   commandName: string,
@@ -93,8 +99,8 @@ async function copyToClipboardWithStatus(
   try {
     await clipboard.write(prompt);
     log.blank();
-    log.warn(`${commandName}: ${reason}. Prompt copied to clipboard.`);
-    log.info(`Paste it into your agent window — ${pasteHint}`);
+    log.warn(`${commandName}: ${displayFallbackReason(reason)}. Prompt copied to clipboard.`);
+    log.info(`Paste it into your Cursor Agent panel, Claude Code, or Codex window — ${pasteHint}`);
     return { outcome: 'clipboard' };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

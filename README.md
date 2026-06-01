@@ -1,7 +1,7 @@
 # AI Context: Shared Memory for Coding Agents
 
 > Persistent context across sessions, tools, and teams  
-> One `.ai-context/` directory. Every agent — Claude Code, Cursor, Codex, Antigravity — reads it. Sessions stop losing context.
+> One `.ai-context/` directory. Every agent — Claude Code, Cursor, Codex — reads it. Sessions stop losing context.
 > One `ai-context` command to manage, fix drift and compact sessions. 
 
 [![npm](https://img.shields.io/npm/v/@dkothule/ai-context.svg)](https://www.npmjs.com/package/@dkothule/ai-context) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
@@ -17,7 +17,7 @@ You ask Claude to refactor something. Tomorrow you switch to Cursor. It has no i
 - One shared directory (`.ai-context/`) every agent reads on session start.
 - Thin "adapter" files (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/…`) point the agents there.
 - Mandatory session logs preserve decisions and state between sessions.
-- Hooks guarantee context isn't lost when Claude Code auto-compacts.
+- PreCompact hooks autosave a transcript breadcrumb for Claude Code, Cursor, and Codex; post-compact/session-start hooks feed that breadcrumb back so agents can recover any detail the compacted summary missed.
 
 Nothing fancy — just a file layout and a few scripts that work.
 
@@ -29,7 +29,7 @@ Nothing fancy — just a file layout and a few scripts that work.
 npx @dkothule/ai-context init
 ```
 
-That's it. Interactive prompts pick your agents (Claude, Cursor, Codex pre-checked; Antigravity opt-in), then an LLM configures the context files from your repo.
+That's it. Interactive prompts pick your agents (Claude, Cursor, Codex — all pre-checked), then an LLM configures the context files from your repo.
 
 Once installed, all commands are available as `ai-context <cmd>` (no scope prefix needed — scope is just the npm package name).
 
@@ -37,7 +37,7 @@ Once installed, all commands are available as `ai-context <cmd>` (no scope prefi
 
 1. **Asks you** which agent adapters to install.
 2. **Backs up** existing `.ai-context/`, `CLAUDE.md`, `AGENTS.md`, and any current agent adapters to `.ai-context-backups/<timestamp>/`. Nothing destructive happens without a safety copy.
-3. **Copies templates** into your project: generic `.ai-context/` files, thin adapter wrappers (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/main.mdc`, etc.), Claude Code hooks under `.claude/hooks/`.
+3. **Copies templates** into your project: generic `.ai-context/` files, thin adapter wrappers (`CLAUDE.md`, `AGENTS.md`, `.cursor/rules/main.mdc`, etc.), and per-agent session-management hooks under `.claude/hooks/`, `.cursor/hooks/`, and `.codex/hooks/`.
 4. **Runs a setup prompt** via your chosen CLI (usually `claude -p`). The agent reads your repo and personalizes `project.overview.md`, `project.structure.md`, and any language/testing standards it detects (TypeScript, Python, Go, etc.).
 5. **Writes an install log** to `.ai-context/logs/install/<timestamp>.md` so you can see exactly what happened.
 
@@ -51,30 +51,37 @@ ai-context init
 
 npx @dkothule/ai-context@latest init # upgrade to latest — safely handles existing installs
 
-ai-context apply --agents claude,cursor,codex   # non-interactive (for CI / scripts)
+ai-context init --agents claude,cursor,codex --yes   # non-interactive (for CI / scripts)
+ai-context init --agents codex --yes --cli codex      # non-interactive + run setup via Codex
+ai-context apply                     # install/upgrade only (no setup) — fully non-interactive
 ai-context init --dry-run            # preview without writing
 ai-context init --gitignore          # also add sessions/ + backups to .gitignore
 ```
 
-**Requirements:** Node 18+. Any Unix-like shell for the Claude hooks (macOS, Linux, WSL, Git Bash on Windows).
+`--yes` skips every prompt, including the post-install CLI picker: it runs setup via `--cli` if given, otherwise the first selected agent (and saves that choice as `configured_cli`). For install/upgrade with no setup step at all, use `ai-context apply`.
+
+**Requirements:** Node 18+. Any Unix-like shell for the bash hooks (macOS, Linux, WSL, Git Bash on Windows).
 
 ---
 
 ## Commands
 
-Six commands, each does one thing:
+Each command does one thing:
 
 | Command | What it does |
 |---|---|
 | `ai-context init` | Install or upgrade. Interactive prompts for agents + setup. |
 | `ai-context apply` | Same as `init`, but non-interactive (for CI/scripts). |
 | `ai-context setup` | Re-run just the setup prompt (your agent configures `.ai-context/`). |
+| `ai-context use [cli]` | Set the CLI agent (claude/codex/cursor) used by setup/check-drift/compact. |
 | `ai-context check-drift` | Audit `.ai-context/` vs. your actual code. Optionally apply patches. |
 | `ai-context compact` | Archive old session logs to reduce noise. |
-| `ai-context status` | Show installed version + schema. |
+| `ai-context status` | Show installed version + schema + configured CLI. |
 | `ai-context uninstall` | Remove everything. |
 
-All LLM-driven commands (`setup`, `check-drift`, `compact`) work the same way: try the local `claude` CLI first with pre-approved permissions, fall back to copying a prompt to your clipboard if the CLI isn't available.
+All LLM-driven commands (`setup`, `check-drift`, `compact`) run via a coding-agent CLI and fall back to copying the prompt to your clipboard if none is available or authenticated.
+
+**Which CLI runs them?** The CLI you pick during `init`/`setup` is remembered (saved as `configured_cli` in `.ai-context/manifest.json`), and `setup`, `check-drift`, and `compact` use it by default — so a project set up with Codex keeps using Codex instead of silently falling back to Claude. To change it later, run `ai-context use` (interactive picker) or `ai-context use codex` (direct). A one-off `--cli <name>` flag still overrides it per run, and if no CLI is configured the commands auto-detect a local `claude`, `codex`, or Cursor `agent` (with pre-approved permissions for Claude and `--force` for Cursor).
 
 **Getting help:** every command supports `--help` (or `-h`) for full flag reference:
 
@@ -105,8 +112,14 @@ your-project/
 │
 ├── CLAUDE.md                    # thin wrapper → @AGENTS.md
 ├── AGENTS.md                    # thin wrapper → points to .ai-context/
-├── .cursor/rules/main.mdc       # Cursor adapter
-├── .agent/rules/rules.md        # Antigravity adapter (opt-in)
+├── .cursor/
+│   ├── rules/main.mdc           # Cursor adapter
+│   ├── hooks/                   # session-management hooks (preCompact, sessionEnd, sessionStart)
+│   └── hooks.json               # Cursor hook registrations
+├── .codex/
+│   ├── hooks/                   # session-management hooks (Stop, PreCompact, PostCompact, SessionStart)
+│   ├── hooks.json               # Codex hook registrations
+│   └── config.toml              # enables `hooks` feature flag (required by Codex)
 ├── .claude/
 │   ├── hooks/                   # context-preservation hooks (see below)
 │   └── settings.json            # hook registrations
@@ -136,15 +149,43 @@ At session end, the agent writes a session log, updates `project.tasks.md`, logs
 
 ---
 
-## Claude hooks
+## Hooks
 
-Claude Code gets two hooks out of the box:
+Session-management hooks are installed for Claude Code, Cursor, and Codex. Coverage by agent:
 
-- **`Stop` hook** — reminds Claude to write a session log before ending a session. Advisory (never blocks).
-- **`PreCompact` hook** — before any compaction (`/compact` or auto-compact), writes the transcript to `sessions/YYYY-MM-DD-HHMM-precompact-autosave.md` so context is preserved on disk even if Claude's context window gets dropped.
-- **`SessionStart(compact)` hook** — in the fresh session after compaction, injects a reminder to curate the autosave into a proper session log and delete it.
+| Agent | Session-end log reminder | Pre-compact autosave | Post-compact reminder |
+|---|---|---|---|
+| **Claude Code** (`.claude/settings.json`) | ✅ `Stop` | ✅ `PreCompact` | ✅ `SessionStart(compact)` |
+| **Cursor** (`.cursor/hooks.json`) | ✅ `sessionEnd` | ✅ `preCompact` | ✅ `sessionStart` (`additional_context`) |
+| **Codex** (`.codex/hooks.json`) | ✅ `Stop` | ✅ `PreCompact` | ✅ `PostCompact` + `SessionStart` |
 
-Result: you can never lose working context to compaction. The autosave captures it, the reminder ensures it gets curated next turn.
+What each hook does:
+
+- **Session-end log reminder** — reminds the agent to write a session log if today's log is missing. Advisory only (never blocks).
+- **Pre-compact autosave** — writes `sessions/YYYY-MM-DD-HHMM-precompact-autosave.md` before compaction. The autosave includes a `local_transcript_ref` pointer to the local agent transcript JSONL and, when possible, a short recent-turn excerpt, so critical context remains recoverable even if the compacted summary omits it.
+- **Post-compact reminder** — in the fresh session after compaction, surfaces the autosave so the agent curates it into a proper session log. The session log should preserve `source_autosave` and the autosave's `local_transcript_ref` when present, then delete the autosave. Older autosaves may use the legacy name `transcript_ref`; copy it into `local_transcript_ref` during curation.
+
+Result: with Claude Code, Cursor, or Codex, compaction writes a recoverable checkpoint before context is dropped and then reminds the next session to curate it.
+
+The local transcript reference is a fallback, not the durable memory itself. It helps the same local agent recover exact prior discussion if something important was lost during compaction; the curated session log remains the portable handoff future agents should read first. Hooks write the path home-relative when possible (`~/.codex/...` instead of `/Users/name/...`), but if you commit or share session logs, still treat `local_transcript_ref` as local/private and redact it if needed.
+
+All hooks are installed automatically by `ai-context init` for the agents you select. Existing user-owned hooks in `hooks.json` / `settings.json` are preserved — the installer merges additively.
+
+> [!IMPORTANT]
+> **Codex requires a one-time trust step, or its hooks silently do nothing.**
+> Codex loads `.codex/hooks.json` only after you explicitly trust each hook — installing the files is not enough. After `ai-context init` (or any time the Codex hooks change), trust them one of two ways:
+>
+> - **Codex CLI** — open Codex in the project and run `/hooks`, then approve the AI Context entries (`PreCompact`, `PostCompact`, `Stop`, `SessionStart`).
+> - **Codex desktop app** — go to **Settings → Hooks** and trust the project-level hooks.
+>
+> Until you do this, Codex's autosave-on-compaction and session-log reminders will **not** run. Trust is stored per hook hash in `~/.codex/config.toml`, so re-trust after the hooks change. If a Codex session was already open when the hooks were added, **restart the app/session (or re-open the project)** before trusting them.
+
+**What about Claude Code and Cursor?** They don't need this explicit per-hook approval:
+
+- **Claude Code** loads hooks from `.claude/settings.json` on startup. If the hooks change mid-session it shows a review notice (`/hooks`); otherwise restarting the session is enough — there's no separate trust gate that blocks them.
+- **Cursor** loads `.cursor/hooks.json` under normal workspace trust; no per-hook approval. Restart Cursor (or reload the window) if hooks were added while it was open.
+
+In short: **only Codex hard-blocks hooks behind an explicit trust step.** For all three, restarting the agent after install is the safe move.
 
 ---
 
@@ -181,6 +222,23 @@ ai-context check-drift --fix --dry-run     # print what would be patched, don't 
 ```
 
 Tip: snapshot `.ai-context/` first (`cd .ai-context && git add -A && git commit -m "pre-fix"`) if you want an easy rollback. The fix step edits files in place; reviewing a clean diff afterwards is the safety net.
+
+---
+
+## Choosing the CLI agent
+
+`setup`, `check-drift`, and `compact` need a coding-agent CLI to run their LLM prompt. The CLI you pick the first time you run `init`/`setup` is **saved to `.ai-context/manifest.json`** (`configured_cli`) and reused by every later command — so the project stays on the agent you chose instead of always falling back to Claude.
+
+```bash
+ai-context use            # interactive picker (claude / codex / cursor), defaults to current
+ai-context use codex      # set it directly
+ai-context status         # shows "Configured CLI: codex"
+```
+
+- The value is preserved across upgrades (`init`/`apply` won't reset it).
+- `ai-context use` saves your choice even if that CLI isn't installed/authenticated yet (it warns, then persists) so you can configure it ahead of time.
+- A per-run `--cli <name>` flag on `setup`/`check-drift`/`compact` still overrides the saved default.
+- If nothing is configured, the commands auto-detect the first available CLI (and copy the prompt to your clipboard if none is ready).
 
 ---
 
@@ -319,7 +377,7 @@ ls .ai-context-backups/                              # list timestamped backups
 
 TARGET=20260418-081533-19339
 # restore (overwrites current state):
-rm -rf .ai-context .cursor .agent .claude/hooks AGENTS.md CLAUDE.md
+rm -rf .ai-context .cursor .codex .claude/hooks AGENTS.md CLAUDE.md
 cp -R .ai-context-backups/$TARGET/* .
 ```
 
@@ -358,14 +416,12 @@ Many teams keep session logs local (personal) while committing the rest of `.ai-
 
 ## Supported agents
 
-| Agent | Adapter | CLI support for `setup`/`check-drift`/`compact` |
-|---|---|---|
-| **Claude Code** | `CLAUDE.md` + `.claude/hooks/` + `settings.json` | ✅ `claude -p` (primary) |
-| **Cursor** | `.cursor/rules/main.mdc` | IDE only — paste from clipboard |
-| **Codex / OpenAI agents** | `AGENTS.md` | ✅ `codex` (prompt execution) |
-| **Google Antigravity** | `.agent/rules/rules.md` | IDE only |
-| **Google Gemini** | (no adapter) | ✅ `gemini -p` (if installed) |
-| **GitHub Copilot** | _(not shipped — incompatible with Copilot's auto-review + can't resolve relative links; backlog: generate a self-contained instructions file)_ | N/A |
+| Agent | Adapter | Hooks | CLI support for `setup`/`check-drift`/`compact` |
+|---|---|---|---|
+| **Claude Code** | `CLAUDE.md` + `.claude/hooks/` + `settings.json` | Stop, PreCompact, SessionStart(compact) | ✅ `claude -p` (primary) |
+| **Cursor** | `.cursor/rules/main.mdc` | preCompact, sessionEnd, sessionStart (`.cursor/hooks.json`) | ✅ `agent --print` (falls back to `cursor-agent` for older installs) |
+| **Codex / OpenAI agents** | `AGENTS.md` + `.codex/hooks/` | Stop, PreCompact, PostCompact, SessionStart (`.codex/hooks.json`) | ✅ `codex exec` |
+| **GitHub Copilot** | _(not shipped — incompatible with Copilot's auto-review + can't resolve relative links; backlog: generate a self-contained instructions file)_ | N/A | N/A |
 
 All agents read `.ai-context/`. The CLI column affects whether `ai-context setup/check-drift/compact` can execute the LLM prompt directly vs. copy it to your clipboard for manual paste.
 
@@ -405,8 +461,19 @@ Short version:
 - **Single source of truth**: `.ai-context/` holds all governance. Adapters are thin pointers.
 - **Base vs. local standards**: `project.rules.base.md` ships with the tool (upgraded automatically); `project.rules.md` is project-owned (never overwritten).
 - **Ownership-based restore**: on upgrade, tool-owned files are replaced, project-owned files are restored from backup by path pattern. Custom files you add are preserved.
-- **Session logs are mandatory**: enforced by Claude's Stop hook as a reminder, by the adapter files as an instruction, and by the Session Start protocol as a reading habit.
-- **Hooks, not humans, preserve compaction context**: PreCompact autosaves before Claude Code drops the transcript; SessionStart(compact) reminds the next session to curate.
+- **Session logs are mandatory**: reminded by Claude's `Stop` hook, Cursor's `sessionEnd` hook, and Codex's `Stop` hook; instructed by the adapter files; and built into the Session Start reading habit.
+- **Hooks, not humans, preserve compaction context**: Claude Code's `PreCompact`, Cursor's `preCompact`, and Codex's `PreCompact` hooks autosave the transcript before compaction; the corresponding post-compact/session-start hooks remind the next session to curate the autosave.
+
+### Maintainer note: hook source of truth
+
+Hook behavior has two sources, by design:
+
+- **Script behavior** lives at the repo root in `.claude/hooks/*.sh`, `.cursor/hooks/*.sh`, and `.codex/hooks/*.sh`. `scripts/sync-templates.sh` copies those scripts into `packages/cli/src/templates/<agent>/hooks/` before packaging.
+- **Hook registration/config generation** lives in TypeScript: `packages/cli/src/core/claudeHooks.ts`, `cursorHooks.ts`, and `codexHooks.ts`. These modules write or merge `.claude/settings.json`, `.cursor/hooks.json`, `.codex/hooks.json`, and `.codex/config.toml`.
+
+`sync-templates.sh` intentionally removes generated config files such as `cursor/hooks.json`, `codex/hooks.json`, and `codex/config.toml` from the package template tree so upgrades never overwrite user-owned hook configuration.
+
+Codex also requires an explicit hook review step after project-level hooks are added or changed. Run `/hooks` inside Codex for the project and trust the AI Context entries; otherwise Codex may load `.codex/hooks.json` but skip untrusted events such as `PreCompact`/`PostCompact`.
 
 ---
 
@@ -414,14 +481,13 @@ Short version:
 
 Ideas on the near-term roadmap. Directions, not commitments — open an issue if one would unblock you.
 
-- **Skills** - install and manage skills
-- **Cursor Hooks** - support for cursor `preCompact` hooks
-- **Windows-native hooks** — drop the Git Bash / WSL dependency with PowerShell or Node equivalents for the three Claude hooks.
+- **Skills** — install and manage skills.
+- **Windows-native hooks** — drop the Git Bash / WSL dependency with PowerShell or Node equivalents for the bash hooks.
 - **Self-contained GitHub Copilot adapter** — a generator command that builds a flat `.github/copilot-instructions.md` by synthesizing `.ai-context/` content, since Copilot can't resolve relative links the way CLAUDE.md / AGENTS.md can.
-- **First-class Codex support** — non-interactive permission flags for the `codex` CLI so `setup` / `check-drift` / `compact` run cleanly end-to-end instead of falling back to clipboard.
+- **First-class Codex `--full-auto` support** — non-interactive permission flags for the `codex` CLI so `setup` / `check-drift` / `compact` run cleanly end-to-end instead of falling back to clipboard.
+- **Hook smoke automation** — add live hook-trigger smoke tests for Cursor/Codex when their CLIs expose stable hook test commands.
 - **Plugin system** — register custom static drift checks or additional "Read First" files without forking the tool.
 - **`ai-context export`** — dump a flattened snapshot of `.ai-context/` (markdown bundle + manifest) for offline sharing, incident tickets, or attaching to bug reports.
-- **`check-drift --fix` operation log** — persist what the fix pass edited/skipped alongside the drift report (today only the analysis is logged; the apply step is terminal-only).
 
 ---
 
@@ -430,7 +496,7 @@ Ideas on the near-term roadmap. Directions, not commitments — open an issue if
 PRs welcome. The tool should stay small and sharp.
 
 1. Fork, branch off `main`.
-2. `cd packages/cli && npm install && npm test` to confirm the 73-test suite passes.
+2. `cd packages/cli && npm install && npm test` to confirm the test suite passes.
 3. Follow standards in `.ai-context/standards/`.
 4. Write a session log for non-trivial changes.
 5. Open a PR.

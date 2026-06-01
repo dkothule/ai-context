@@ -1,8 +1,10 @@
 ---
 date: YYYY-MM-DD
 time: HH:MM:SS
-agent: [Codex | Claude Code | Cursor | Workspace Agent | Other]
+agent: [Codex | Claude Code | Cursor | Other]
 session_type: [Feature | Bugfix | Refactor | Investigation | Setup | Other]
+source_autosave: # path to precompact autosave this log was curated from, if any; delete line if not applicable
+local_transcript_ref: # optional local JSONL transcript path copied from source_autosave; delete/redact if not applicable or shared
 ---
 
 # Session: [Brief Description]

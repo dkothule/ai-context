@@ -1,11 +1,12 @@
 {
   "name": "ai-context",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "schema_version": 5,
   "managed_by": "npm:@dkothule/ai-context",
   "installed_at": null,
   "apply_mode": "source-tree",
   "previous_version": null,
   "previous_schema_version": null,
+  "configured_cli": null,
   "agents_installed": null
 }

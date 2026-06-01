@@ -55,6 +55,5 @@ Use these files as the single authority for instruction priority, clarification 
 - **Claude Code** — `CLAUDE.md` (root, imports `@AGENTS.md`)
 - **Codex / OpenAI agents** — `AGENTS.md` (root, canonical thin wrapper)
 - **Cursor** — `.cursor/rules/main.mdc`
-- **Google Antigravity / Workspace agents** — `.agent/rules/rules.md`
 
 All adapters are intentionally thin and route to `.ai-context/` — on-demand loading avoids context-window bloat.

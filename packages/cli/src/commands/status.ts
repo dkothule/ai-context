@@ -5,12 +5,14 @@ import { readManifest } from '../core/manifest.js';
 import { log } from '../ui/logger.js';
 import pc from 'picocolors';
 
-/** Agent files to check for presence. */
+/** Agent files to check for presence (adapter files + hook configs). */
 const AGENT_FILES: Array<{ label: string; path: string }> = [
   { label: 'CLAUDE.md', path: 'CLAUDE.md' },
   { label: 'AGENTS.md', path: 'AGENTS.md' },
   { label: '.cursor/rules/main.mdc', path: '.cursor/rules/main.mdc' },
-  { label: '.agent/rules/rules.md', path: '.agent/rules/rules.md' },
+  { label: '.cursor/hooks.json (Cursor hooks)', path: '.cursor/hooks.json' },
+  { label: '.codex/hooks.json (Codex hooks)', path: '.codex/hooks.json' },
+  { label: '.claude/settings.json (Claude hooks)', path: '.claude/settings.json' },
 ];
 
 export function statusCommand(): Command {
@@ -42,6 +44,9 @@ export function statusCommand(): Command {
         }
         if (manifest.agents_installed) {
           log.info(`Agents installed:   ${manifest.agents_installed.join(', ')}`);
+        }
+        if (manifest.configured_cli) {
+          log.info(`Configured CLI:     ${manifest.configured_cli}`);
         }
       } else {
         log.warn('No manifest found — AI Context may have been partially installed.');

@@ -10,7 +10,7 @@ SHARED EXECUTION RULES:
 
 STRICT SCOPE:
 - Modify ONLY files under .ai-context/**.
-- Do NOT modify any non-.ai-context files, including README.md, source files, tests, AGENTS.md, CLAUDE.md, .cursor/**, .agent/**, or .github/**.
+- Do NOT modify any non-.ai-context files, including README.md, source files, tests, AGENTS.md, CLAUDE.md, .cursor/**, .codex/**, or .github/**.
 
 OWNERSHIP:
 - Treat these as AI Context-owned / installer-managed and keep the CURRENT versions:

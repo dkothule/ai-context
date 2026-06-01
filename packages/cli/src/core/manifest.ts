@@ -17,6 +17,13 @@ export interface Manifest {
   installed_at: string | null;
   apply_mode: ApplyMode;
   agents_installed: string[] | null;
+  /**
+   * The CLI execution transport chosen to run setup/compact/check-drift
+   * (one of getRegisteredCLIs(): claude/codex/cursor). Distinct from
+   * `agents_installed`, which lists installed adapter files. `null` means
+   * "auto-detect the first available CLI".
+   */
+  configured_cli: string | null;
   previous_version: string | null;
   previous_schema_version: number | null;
 }
@@ -77,6 +84,7 @@ export async function readManifest(contextDir: string): Promise<Manifest | null>
     installed_at: parsed.installed_at ?? null,
     apply_mode: (parsed.apply_mode as ApplyMode) ?? 'fresh-install',
     agents_installed: (parsed as Manifest).agents_installed ?? null,
+    configured_cli: (parsed as Manifest).configured_cli ?? null,
     previous_version: parsed.previous_version ?? null,
     previous_schema_version: parsed.previous_schema_version ?? null,
   };
@@ -88,6 +96,34 @@ export async function readManifest(contextDir: string): Promise<Manifest | null>
 export async function writeManifest(contextDir: string, data: Manifest): Promise<void> {
   const manifestPath = join(contextDir, 'manifest.json');
   await writeFile(manifestPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+}
+
+/**
+ * Persists the chosen CLI execution transport into the manifest's
+ * `configured_cli` field via a read-modify-write (preserving every other
+ * field). Returns false if no manifest exists yet (AI Context not installed).
+ */
+export async function setConfiguredCli(contextDir: string, cli: string): Promise<boolean> {
+  const manifest = await readManifest(contextDir);
+  if (!manifest) return false;
+  manifest.configured_cli = cli;
+  await writeManifest(contextDir, manifest);
+  return true;
+}
+
+/**
+ * Resolves the default CLI for non-interactive commands (compact/check-drift)
+ * from the manifest's `configured_cli`. Returns undefined (→ auto-detect) when
+ * unset or when the stored value is no longer a registered CLI.
+ * `registeredCLIs` is passed in to avoid a dependency on agentCLI.ts here.
+ */
+export async function resolveConfiguredCli(
+  contextDir: string,
+  registeredCLIs: string[],
+): Promise<string | undefined> {
+  const manifest = await readManifest(contextDir);
+  const cli = manifest?.configured_cli ?? undefined;
+  return cli && registeredCLIs.includes(cli) ? cli : undefined;
 }
 
 /**

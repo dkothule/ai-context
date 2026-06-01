@@ -15,7 +15,7 @@ export function setupCommand(): Command {
     .argument('[path]', 'Target project directory', process.cwd())
     .option('--print', 'Print the prompt to stdout (bypass execution and clipboard)')
     .option('--copy', 'Copy the prompt to the clipboard (skip CLI execution)')
-    .option('--cli <name>', 'Force a specific CLI (e.g. claude, codex)')
+    .option('--cli <name>', 'Force a specific CLI (e.g. claude, codex, cursor)')
     .option('--permission-mode <mode>', `Override claude --permission-mode (${VALID_PERMISSION_MODES.join('|')})`)
     .action(
       async (

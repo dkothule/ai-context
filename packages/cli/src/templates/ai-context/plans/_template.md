@@ -1,6 +1,6 @@
 ---
 date: YYYY-MM-DD
-agent: [Codex | Claude Code | Cursor | Workspace Agent | Other]
+agent: [Codex | Claude Code | Cursor | Other]
 status: [Draft | Approved | In Progress | Completed | Abandoned]
 ---
 

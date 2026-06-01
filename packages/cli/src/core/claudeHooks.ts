@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, writeFile } from 'fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 
@@ -27,6 +27,12 @@ interface HooksBlock {
  * Builds the hooks block AI Context installs into .claude/settings.json.
  * See docs: https://code.claude.com/docs/en/hooks
  */
+function buildHookCommand(scriptName: string): string {
+  // Claude sets CLAUDE_PROJECT_DIR for hooks. The git/pwd fallback keeps the
+  // command usable in manual and non-git smoke tests.
+  return `bash "\${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/.claude/hooks/${scriptName}"`;
+}
+
 function buildHooksBlock(): HooksBlock {
   return {
     Stop: [
@@ -35,7 +41,7 @@ function buildHooksBlock(): HooksBlock {
         hooks: [
           {
             type: 'command',
-            command: `bash .claude/hooks/${HOOK_SCRIPTS.stop}`,
+            command: buildHookCommand(HOOK_SCRIPTS.stop),
             timeout: 5000,
           },
         ],
@@ -47,7 +53,7 @@ function buildHooksBlock(): HooksBlock {
         hooks: [
           {
             type: 'command',
-            command: `bash .claude/hooks/${HOOK_SCRIPTS.preCompact}`,
+            command: buildHookCommand(HOOK_SCRIPTS.preCompact),
             timeout: 5000,
           },
         ],
@@ -57,7 +63,7 @@ function buildHooksBlock(): HooksBlock {
         hooks: [
           {
             type: 'command',
-            command: `bash .claude/hooks/${HOOK_SCRIPTS.preCompact}`,
+            command: buildHookCommand(HOOK_SCRIPTS.preCompact),
             timeout: 10000,
           },
         ],
@@ -69,7 +75,7 @@ function buildHooksBlock(): HooksBlock {
         hooks: [
           {
             type: 'command',
-            command: `bash .claude/hooks/${HOOK_SCRIPTS.postCompact}`,
+            command: buildHookCommand(HOOK_SCRIPTS.postCompact),
             timeout: 5000,
           },
         ],
@@ -181,14 +187,29 @@ async function mergeHooksIntoSettings(
           (e.matcher ?? '') === (ourEntry.matcher ?? '') && entryUsesOurScript(e, ourScriptNames),
       );
 
-      if (!alreadyPresent) {
+      if (alreadyPresent) {
+        const existingIdx = existingArr.findIndex(
+          (e) =>
+            (e.matcher ?? '') === (ourEntry.matcher ?? '') &&
+            entryUsesOurScript(e, ourScriptNames),
+        );
+        const existingEntry = existingArr[existingIdx];
+        const existingHandlers = JSON.stringify(existingEntry.hooks ?? []);
+        const ourHandlers = JSON.stringify(ourEntry.hooks);
+        if (existingHandlers !== ourHandlers) {
+          existingArr[existingIdx] = ourEntry;
+          if (!eventsMerged.includes(event)) eventsMerged.push(event);
+        }
+      } else {
         toAdd.push(ourEntry);
       }
     }
 
     if (toAdd.length > 0) {
       mergedHooks[event] = [...existingArr, ...toAdd];
-      eventsMerged.push(event);
+      if (!eventsMerged.includes(event)) eventsMerged.push(event);
+    } else if (eventsMerged.includes(event)) {
+      mergedHooks[event] = existingArr;
     }
   }
 
@@ -250,8 +271,18 @@ export async function removeHookFromSettings(
 
   if (!removedAny) return false;
 
+  // If the file has no remaining top-level keys, it was created by us on a
+  // fresh install (we wrote `{ "hooks": {...} }`) — delete it so uninstall
+  // really removes everything AI Context-owned. User-owned keys like
+  // `permissions` keep the file alive.
+  const isOurStub = Object.keys(settings).length === 0;
+
   if (!dryRun) {
-    await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+    if (isOurStub) {
+      await rm(settingsPath, { force: true });
+    } else {
+      await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+    }
   }
 
   return true;

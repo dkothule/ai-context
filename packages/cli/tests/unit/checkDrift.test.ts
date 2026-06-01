@@ -4,6 +4,9 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { runStaticChecks } from '../../src/commands/checkDrift.js';
+import { writeCommandLog } from '../../src/core/logWriter.js';
+import { readFile, readdir } from 'fs/promises';
+import { existsSync } from 'fs';
 
 let tmpDir: string;
 let contextDir: string;
@@ -77,5 +80,37 @@ describe('runStaticChecks', () => {
     const backlog = findings.filter((f) => f.kind === 'stale-backlog');
     expect(backlog.length).toBe(1);
     expect(backlog[0].message).toContain(oldDate);
+  });
+});
+
+describe('check-drift --fix audit log', () => {
+  it('writeCommandLog with category="drift" suffix="fix" produces a file under .ai-context/logs/drift/', async () => {
+    const content = '---\ncommand: ai-context check-drift --fix\nseverity: significant\n---\n\n# Fix log\nApplied 2 patches.\n';
+    const logPath = await writeCommandLog({
+      targetDir: tmpDir,
+      category: 'drift',
+      suffix: 'fix',
+      content,
+    });
+
+    expect(existsSync(logPath)).toBe(true);
+    expect(logPath).toContain(join('.ai-context', 'logs', 'drift'));
+    expect(logPath.endsWith('-fix.md')).toBe(true);
+
+    const written = await readFile(logPath, 'utf8');
+    expect(written).toContain('# Fix log');
+    expect(written).toContain('Applied 2 patches.');
+
+    // Confirm a separate 'drift' phase 1 log can coexist alongside the 'fix' log.
+    await writeCommandLog({
+      targetDir: tmpDir,
+      category: 'drift',
+      suffix: 'drift',
+      content: '# Drift report\n',
+    });
+    const driftDir = join(tmpDir, '.ai-context', 'logs', 'drift');
+    const files = await readdir(driftDir);
+    expect(files.some((f) => f.endsWith('-fix.md'))).toBe(true);
+    expect(files.some((f) => f.endsWith('-drift.md'))).toBe(true);
   });
 });

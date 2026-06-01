@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import { runInstall } from '../core/install.js';
 import { ALL_AGENTS } from '../core/copyTemplates.js';
 import { log } from '../ui/logger.js';
+import { printCodexHookTrustReminder } from '../ui/notices.js';
 import pc from 'picocolors';
 
 export function applyCommand(): Command {
@@ -51,6 +52,10 @@ export function applyCommand(): Command {
           log.info(`Restored:     ${result.restoredCount} project-owned file(s)`);
         }
         log.rule();
+
+        if (!opts.dryRun && result.codexHooksMerged) {
+          printCodexHookTrustReminder();
+        }
 
         if (!opts.dryRun && result.applyMode === 'fresh-install') {
           log.blank();

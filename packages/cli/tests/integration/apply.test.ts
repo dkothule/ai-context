@@ -83,6 +83,7 @@ describe('runInstall — upgrade', () => {
       installed_at: '2026-01-01T00:00:00.000Z',
       apply_mode: 'fresh-install',
       agents_installed: null,
+      configured_cli: null,
       previous_version: null,
       previous_schema_version: null,
     };
@@ -111,6 +112,25 @@ describe('runInstall — upgrade', () => {
     expect(manifest!.apply_mode).toBe('upgrade');
     expect(manifest!.previous_version).toBe('0.5.0');
     expect(manifest!.version).toBe(await currentTemplateVersion());
+  });
+
+  it('preserves configured_cli across an upgrade', async () => {
+    await installOldVersion(tmpDir);
+    const contextDir = join(tmpDir, '.ai-context');
+    // Simulate a prior CLI selection persisted by setup.
+    const existing = await readManifest(contextDir);
+    await writeManifest(contextDir, { ...existing!, configured_cli: 'codex' });
+
+    await runInstall({ targetDir: tmpDir, agents: ALL_AGENTS });
+
+    const manifest = await readManifest(contextDir);
+    expect(manifest!.configured_cli).toBe('codex');
+  });
+
+  it('leaves configured_cli null on a fresh install', async () => {
+    await runInstall({ targetDir: tmpDir, agents: ALL_AGENTS });
+    const manifest = await readManifest(join(tmpDir, '.ai-context'));
+    expect(manifest!.configured_cli).toBeNull();
   });
 });
 
@@ -165,5 +185,132 @@ describe('runInstall — hooks', () => {
     const settings = JSON.parse(raw);
     expect(settings.hooks).toBeDefined();
     expect(settings.permissions).toEqual({ allow: ['Bash'] }); // preserved
+  });
+
+  it('does NOT install Claude hooks when claude agent is not selected', async () => {
+    // Symmetry with the cursor / codex tests below — agent-specific hook
+    // installation should be gated by the selected agents list.
+    const result = await runInstall({ targetDir: tmpDir, agents: ['cursor'] });
+
+    expect(result.hooksMerged).toBe(false);
+    expect(existsSync(join(tmpDir, '.claude', 'hooks'))).toBe(false);
+    expect(existsSync(join(tmpDir, '.claude', 'settings.json'))).toBe(false);
+    // Cursor was selected, so its files should be present.
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks.json'))).toBe(true);
+  });
+});
+
+describe('runInstall — cursor hooks', () => {
+  it('installs .cursor/hooks.json + scripts when cursor agent selected', async () => {
+    const result = await runInstall({ targetDir: tmpDir, agents: ['cursor'] });
+    expect(result.cursorHooksMerged).toBe(true);
+    expect(result.cursorHooksEventsMerged?.sort()).toEqual(['preCompact', 'sessionEnd', 'sessionStart']);
+
+    expect(existsSync(join(tmpDir, '.cursor', 'rules', 'main.mdc'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks', 'pre-compact.sh'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks', 'session-log-check.sh'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks', 'post-compact-reminder.sh'))).toBe(true);
+
+    const config = JSON.parse(await readFile(join(tmpDir, '.cursor', 'hooks.json'), 'utf8'));
+    expect(config.version).toBe(1);
+    expect(Object.keys(config.hooks).sort()).toEqual(['preCompact', 'sessionEnd', 'sessionStart']);
+    expect(config.hooks.preCompact[0].command).toContain('git rev-parse --show-toplevel');
+    expect(config.hooks.preCompact[0].command).toContain('.cursor/hooks/pre-compact.sh');
+  });
+
+  it('does not install cursor hooks when cursor agent not selected', async () => {
+    const result = await runInstall({ targetDir: tmpDir, agents: ['claude'] });
+    expect(result.cursorHooksMerged).toBeUndefined();
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks.json'))).toBe(false);
+    expect(existsSync(join(tmpDir, '.cursor', 'hooks'))).toBe(false);
+  });
+
+  it('cursor hook install is idempotent on reapply', async () => {
+    await runInstall({ targetDir: tmpDir, agents: ['cursor'] });
+    const first = await readFile(join(tmpDir, '.cursor', 'hooks.json'), 'utf8');
+
+    const second = await runInstall({ targetDir: tmpDir, agents: ['cursor'] });
+    expect(second.cursorHooksMerged).toBe(false);
+
+    const after = await readFile(join(tmpDir, '.cursor', 'hooks.json'), 'utf8');
+    expect(after).toBe(first);
+  });
+
+  it('preserves user-owned hooks in cursor/hooks.json on upgrade', async () => {
+    // Simulate v1.1 user with custom Cursor hooks (hypothetical — hooks are new in v1.2)
+    await mkdir(join(tmpDir, '.cursor'), { recursive: true });
+    const userOwned = {
+      version: 1,
+      hooks: {
+        sessionEnd: [{ command: 'bash scripts/my-session-end.sh' }],
+      },
+    };
+    await writeFile(join(tmpDir, '.cursor', 'hooks.json'), JSON.stringify(userOwned, null, 2));
+
+    await runInstall({ targetDir: tmpDir, agents: ['cursor'] });
+
+    const merged = JSON.parse(await readFile(join(tmpDir, '.cursor', 'hooks.json'), 'utf8'));
+    expect(merged.hooks.sessionEnd).toHaveLength(2); // user + ours
+    expect(merged.hooks.sessionEnd.some((e: { command: string }) => e.command.includes('my-session-end.sh'))).toBe(true);
+    expect(merged.hooks.preCompact).toHaveLength(1);
+  });
+});
+
+describe('runInstall — codex hooks', () => {
+  it('installs .codex/hooks.json (Claude-style schema) + config.toml + scripts when codex agent selected', async () => {
+    const result = await runInstall({ targetDir: tmpDir, agents: ['codex'] });
+    expect(result.codexHooksMerged).toBe(true);
+    expect(result.codexHooksEventsMerged?.sort()).toEqual(['PostCompact', 'PreCompact', 'SessionStart', 'Stop']);
+
+    expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.codex', 'hooks', 'pre-compact.sh'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.codex', 'hooks', 'session-log-check.sh'))).toBe(true);
+    expect(existsSync(join(tmpDir, '.codex', 'hooks', 'post-compact-reminder.sh'))).toBe(true);
+
+    const config = JSON.parse(await readFile(join(tmpDir, '.codex', 'hooks.json'), 'utf8'));
+    expect(Object.keys(config.hooks).sort()).toEqual(['PostCompact', 'PreCompact', 'SessionStart', 'Stop']);
+    expect(config.hooks.PreCompact[0].matcher).toBe('manual|auto');
+    expect(config.hooks.PreCompact[0].hooks[0].command).toContain('.codex/hooks/pre-compact.sh');
+    expect(config.hooks.PostCompact[0].matcher).toBe('manual|auto');
+    expect(config.hooks.PostCompact[0].hooks[0].command).toContain('.codex/hooks/post-compact-reminder.sh');
+
+    // Stop entry: nested hooks[] with type:'command' and git-root path
+    const stopHandler = config.hooks.Stop[0].hooks[0];
+    expect(stopHandler.type).toBe('command');
+    expect(stopHandler.command).toContain('git rev-parse --show-toplevel');
+    expect(stopHandler.command).toContain('.codex/hooks/session-log-check.sh');
+    expect(stopHandler.timeout).toBe(30);
+
+    // SessionStart entry: matcher 'startup|resume' + nested type:'command' handler
+    const sessionStartEntry = config.hooks.SessionStart[0];
+    expect(sessionStartEntry.matcher).toBe('startup|resume');
+    expect(sessionStartEntry.hooks[0].type).toBe('command');
+    expect(sessionStartEntry.hooks[0].command).toContain('git rev-parse --show-toplevel');
+    expect(sessionStartEntry.hooks[0].command).toContain('.codex/hooks/post-compact-reminder.sh');
+
+    // config.toml ensures the Codex hooks feature flag is enabled — without it,
+    // Codex CLI will not load hooks.json at all.
+    const toml = await readFile(join(tmpDir, '.codex', 'config.toml'), 'utf8');
+    expect(toml).toContain('[features]');
+    expect(toml).toContain('hooks = true');
+    expect(toml).not.toContain('codex_hooks = true');
+  });
+
+  it('does not install codex hooks when codex agent not selected', async () => {
+    const result = await runInstall({ targetDir: tmpDir, agents: ['claude'] });
+    expect(result.codexHooksMerged).toBeUndefined();
+    expect(existsSync(join(tmpDir, '.codex'))).toBe(false);
+  });
+
+  it('codex hook install is idempotent on reapply', async () => {
+    await runInstall({ targetDir: tmpDir, agents: ['codex'] });
+    const first = await readFile(join(tmpDir, '.codex', 'hooks.json'), 'utf8');
+    const firstToml = await readFile(join(tmpDir, '.codex', 'config.toml'), 'utf8');
+
+    const second = await runInstall({ targetDir: tmpDir, agents: ['codex'] });
+    expect(second.codexHooksMerged).toBe(false);
+
+    expect(await readFile(join(tmpDir, '.codex', 'hooks.json'), 'utf8')).toBe(first);
+    expect(await readFile(join(tmpDir, '.codex', 'config.toml'), 'utf8')).toBe(firstToml);
   });
 });
